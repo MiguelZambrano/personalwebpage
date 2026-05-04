@@ -1,0 +1,4 @@
+:root {
+    /* El valor original suele ser 800px. Prueba con 1000px, 1200px o un porcentaje como 90% */
+    --main-width: 1000px; 
+}

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Página personal</title>
+    <link>http://localhost:1313/</link>
+    <description>Recent content on Página personal</description>
+    <generator>Hugo</generator>
+    <language>es-us</language>
+    <lastBuildDate>Sun, 03 May 2026 20:00:00 -0500</lastBuildDate>
+    <atom:link href="http://localhost:1313/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Finanzas del Agua - Oficina</title>
+      <link>http://localhost:1313/posts/cafeteria_oficina/</link>
+      <pubDate>Sun, 03 May 2026 20:00:00 -0500</pubDate>
+      <guid>http://localhost:1313/posts/cafeteria_oficina/</guid>
+      <description>&lt;p&gt;Estado de los aportes y gastos de la oficina del 5to piso.&lt;/p&gt;
+&lt;iframe src=&#34;https://docs.google.com/spreadsheets/d/e/2PACX-1vR5bOmyWaClBRZ-SeA1nSwDVMcnVFBTMFgZ-UFeagZxCJaZvgwwpDS2W_dk5I7ZUkNl7MTJnUEBm_8S/pubhtml?widget=true&amp;amp;headers=false&#34; width=&#34;100%&#34; height=&#34;500&#34;&gt;&lt;/iframe&gt;</description>
+    </item>
+    <item>
+      <title>Recursos de Álgebra Lineal</title>
+      <link>http://localhost:1313/posts/recursos-algebra/</link>
+      <pubDate>Sun, 03 May 2026 19:44:06 -0500</pubDate>
+      <guid>http://localhost:1313/posts/recursos-algebra/</guid>
+      <description>&lt;p&gt;En este página se encuentran recursos para la asignatura Álgebra Lineal.&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,7 @@
+baseURL = 'https://example.org/'
+languageCode = 'es-us'
+title = 'Página personal'
+theme = 'PaperMod'
+
+[markup.goldmark.renderer]
+  unsafe = true
