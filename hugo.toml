@@ -8,4 +8,4 @@ theme = 'PaperMod'
 
 [params]
   [params.assets]
-    favicon = "/favicon.png"
+    favicon = "favicon.png"
