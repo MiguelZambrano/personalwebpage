@@ -20,12 +20,21 @@
     .slot-cell:hover {
       filter: brightness(0.93);
     }
+    .blocked-pattern {
+      background-image: repeating-linear-gradient(
+        -45deg,
+        #e2e8f0,
+        #e2e8f0 5px,
+        #cbd5e1 5px,
+        #cbd5e1 10px
+      );
+    }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen font-sans pb-12">
 
   <!-- =====================================================================
-       CONFIGURACIÓN DE FIREBASE Y ADMINISTRADOR (EDITA AQUÍ)
+       CONFIGURACIÓN DE FIREBASE Y ADMINISTRADOR
        ===================================================================== -->
   <script>
     // 1. Configuración de tu proyecto de Firebase:
@@ -40,10 +49,10 @@
       measurementId: "G-PVEC50KBBF"
     };
 
-    // 2. PIN del Profesor para desbloquear ajustes, simulaciones y borrado:
+    // 2. PIN del Profesor para desbloquear ajustes, bloqueos, simulaciones y borrado:
     const ADMIN_PIN = "2026";
 
-    // 3. Identificador del evento en la base de datos (puedes cambiarlo por semestre/materia):
+    // 3. Identificador del evento en la base de datos:
     const EVENT_ID = "recuperacion_general";
   </script>
 
@@ -72,24 +81,23 @@
   <main class="max-w-7xl mx-auto px-4 mt-6 space-y-6">
 
     <!-- Panel exclusivo para el Profesor (Oculto para alumnos) -->
-    <section id="adminPanel" class="hidden bg-amber-50 border border-amber-300 rounded-xl p-4 shadow-sm">
-      <div class="flex flex-wrap justify-between items-center gap-2 pb-3 mb-3 border-b border-amber-200">
+    <section id="adminPanel" class="hidden bg-amber-50 border border-amber-300 rounded-xl p-4 shadow-sm space-y-4">
+      <div class="flex flex-wrap justify-between items-center gap-2 pb-3 border-b border-amber-200">
         <div>
           <h2 class="text-sm font-bold text-amber-950 uppercase tracking-wider">Panel de Administración Docente</h2>
-          <p class="text-xs text-amber-800">Los cambios de configuración se actualizan en vivo para todos los estudiantes.</p>
+          <p class="text-xs text-amber-800">Configura la encuesta y bloquea las franjas horarias en las que no puedes dar la recuperación.</p>
         </div>
         <span class="text-xs bg-amber-200 text-amber-900 font-semibold px-2.5 py-0.5 rounded-full">Desbloqueado</span>
       </div>
 
+      <!-- Ajustes Generales -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-        <!-- Nombre de la encuesta -->
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">Título de la sesión / materia</label>
           <input type="text" id="cfgTitle" placeholder="Ej. Recuperación Cálculo"
             class="w-full px-3 py-1.5 text-sm rounded border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500">
         </div>
 
-        <!-- Mostrar/Ocultar Paralelo -->
         <div class="flex items-center gap-2 bg-white px-3 py-2 rounded border border-slate-200">
           <input type="checkbox" id="cfgShowGroup" class="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500">
           <label for="cfgShowGroup" class="text-xs font-semibold text-slate-700 cursor-pointer select-none">
@@ -97,14 +105,12 @@
           </label>
         </div>
 
-        <!-- Opciones de Paralelos -->
         <div id="cfgGroupOptionsBox">
           <label class="block text-xs font-semibold text-slate-700 mb-1">Lista de paralelos (separados por coma)</label>
           <input type="text" id="cfgGroupsList" placeholder="GR1, GR2, GR3"
             class="w-full px-3 py-1.5 text-sm rounded border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500">
         </div>
 
-        <!-- Botón Guardar Ajustes -->
         <div>
           <button onclick="saveSettings()" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs py-2 px-4 rounded transition shadow-sm">
             Guardar Configuración
@@ -112,13 +118,38 @@
         </div>
       </div>
 
+      <!-- Herramienta para Bloquear Franjas Horarias del Profesor -->
+      <div class="bg-white border border-amber-200 rounded-lg p-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="space-y-0.5">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-800">🚫 Bloqueo de Horarios No Disponibles</span>
+            <span id="blockedCountBadge" class="text-[11px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-semibold">0 bloqueados</span>
+          </div>
+          <p class="text-xs text-slate-500">
+            Activa el botón de edición y <strong>haz clic o arrastra sobre el Mapa del Curso (derecha)</strong> para bloquear o desbloquear horas.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="btnEditBlocks" onclick="toggleBlockEditMode()" class="text-xs bg-slate-800 hover:bg-slate-900 text-white font-semibold px-3 py-1.5 rounded transition shadow-sm">
+            ✏️ Editar Bloqueos en el Mapa
+          </button>
+          <button onclick="blockLunchHours()" class="text-xs bg-slate-200 hover:bg-slate-300 text-slate-800 font-medium px-2.5 py-1.5 rounded transition">
+            Bloquear 13:00-14:00 (Almuerzo)
+          </button>
+          <button onclick="clearAllBlockedSlots()" class="text-xs text-rose-700 hover:underline px-2 py-1">
+            Desbloquear todo
+          </button>
+        </div>
+      </div>
+
       <!-- Acciones de datos -->
-      <div class="flex flex-wrap gap-2 mt-4 pt-3 border-t border-amber-200">
+      <div class="flex flex-wrap gap-2 pt-2 border-t border-amber-200">
         <button onclick="simulateStudents()" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded font-medium transition">
           🧪 Simular 12 Alumnos
         </button>
         <button onclick="exportCSV()" class="text-xs bg-emerald-700 hover:bg-emerald-800 text-white px-3 py-1.5 rounded font-medium transition">
-          📊 Exportar CSV (Excel)
+          📊 Exportar CSV (Bloques 2h y 1h)
         </button>
         <button onclick="exportJSON()" class="text-xs bg-slate-700 hover:bg-slate-800 text-white px-3 py-1.5 rounded font-medium transition">
           💾 Respaldar JSON
@@ -129,7 +160,7 @@
       </div>
     </section>
 
-    <!-- Tarjetas de Resumen y Top 3 Mejores Horarios -->
+    <!-- Tarjetas de Resumen y Top 3 Mejores Horarios de 2 Horas Seguidas -->
     <section class="grid grid-cols-1 lg:grid-cols-4 gap-4">
       <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
         <div>
@@ -138,9 +169,12 @@
             <span id="statTotalStudents" class="text-3xl font-extrabold text-slate-800">0</span>
             <span class="text-xs text-slate-500">estudiantes registrados</span>
           </div>
+          <p class="text-[11px] text-slate-500 mt-2 bg-slate-50 p-2 rounded border border-slate-100">
+            ⏱️ <strong>Nota:</strong> La clase de recuperación requiere <strong>2 horas seguidas</strong>.
+          </p>
         </div>
         <div id="filterGroupWrapper" class="mt-3 pt-3 border-t border-slate-100">
-          <label class="block text-xs font-semibold text-slate-600 mb-1">Filtrar mapa de calor por grupo:</label>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Filtrar resultados por grupo:</label>
           <select id="filterGroupSelect" onchange="renderAll()" class="w-full text-xs border border-slate-300 rounded px-2 py-1.5 bg-slate-50">
             <option value="ALL">Todos los grupos</option>
           </select>
@@ -148,9 +182,12 @@
       </div>
 
       <div class="lg:col-span-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-        <div class="flex justify-between items-center mb-2">
-          <span class="text-xs font-semibold uppercase tracking-wider text-emerald-700">🏆 Top 3 Mejores Bloques de Coincidencia</span>
-          <span class="text-xs text-slate-400">Haz clic en cualquier celda del mapa para inspeccionar</span>
+        <div class="flex flex-wrap justify-between items-center gap-2 mb-2">
+          <div>
+            <span class="text-xs font-semibold uppercase tracking-wider text-emerald-700">🏆 Top 3 Mejores Bloques de 2 Horas Seguidas</span>
+            <p class="text-[11px] text-slate-500">Calculado con los alumnos que tienen disponibilidad continua en ambas horas consecutivas.</p>
+          </div>
+          <span class="text-xs text-slate-400">Haz clic en una tarjeta para ver la lista de alumnos</span>
         </div>
         <div id="topSlotsContainer" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div class="text-xs text-slate-400 italic py-2">Aún no hay respuestas registradas.</div>
@@ -165,7 +202,7 @@
       <div class="lg:col-span-5 bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
         <div class="border-b border-slate-100 pb-3">
           <h2 class="text-base font-bold text-slate-800">1. Registra tu Disponibilidad</h2>
-          <p class="text-xs text-slate-500">Escribe tu nombre, arrastra sobre los bloques libres y pulsa Guardar.</p>
+          <p class="text-xs text-slate-500">Marca todas las horas libres que tengas. Recuerda que la recuperación durará <strong>2 horas seguidas</strong>.</p>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -206,11 +243,18 @@
       <div class="lg:col-span-7 bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
         <div class="flex flex-wrap justify-between items-center gap-2 border-b border-slate-100 pb-3">
           <div>
-            <h2 class="text-base font-bold text-slate-800">2. Mapa de Calor del Curso</h2>
-            <p class="text-xs text-slate-500">Muestra cuántos estudiantes coinciden en cada hora.</p>
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-bold text-slate-800">2. Mapa de Calor del Curso</h2>
+              <span id="blockEditBanner" class="hidden text-[11px] bg-rose-600 text-white font-bold px-2 py-0.5 rounded animate-pulse">
+                MODO BLOQUEO ACTIVO: Haz clic o arrastra en la tabla
+              </span>
+            </div>
+            <p class="text-xs text-slate-500">Toca cualquier bloque para inspeccionar quiénes pueden asistir.</p>
           </div>
+
           <!-- Leyenda -->
           <div class="flex items-center gap-1.5 text-[11px] text-slate-600">
+            <span class="px-1.5 py-0.5 rounded blocked-pattern text-slate-700 border border-slate-300 font-medium mr-1">Bloqueado</span>
             <span>0%</span>
             <span class="w-3.5 h-3.5 rounded bg-slate-100 border border-slate-200 inline-block"></span>
             <span class="w-3.5 h-3.5 rounded bg-emerald-100 inline-block"></span>
@@ -233,17 +277,30 @@
 
         <!-- Inspector de Bloque Seleccionado -->
         <div id="slotInspector" class="bg-slate-50 rounded-lg p-3 border border-slate-200 text-xs space-y-2">
-          <div class="flex justify-between items-center">
-            <span id="inspectorTitle" class="font-bold text-slate-700">Pasa el ratón o toca un bloque del mapa grupal para ver quiénes pueden asistir</span>
-            <span id="inspectorBadge" class="hidden px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800"></span>
+          <div class="flex flex-wrap justify-between items-center gap-2">
+            <span id="inspectorTitle" class="font-bold text-slate-700">
+              Pasa el ratón o toca un bloque del mapa grupal para ver detalles
+            </span>
+            <div class="flex items-center gap-2">
+              <div class="inline-flex rounded border border-slate-300 bg-white overflow-hidden text-[11px]">
+                <button id="btnInsp2h" onclick="setInspectorDuration(2)" class="px-2 py-0.5 bg-emerald-600 text-white font-semibold">
+                  Bloque de 2h seguidas
+                </button>
+                <button id="btnInsp1h" onclick="setInspectorDuration(1)" class="px-2 py-0.5 text-slate-600 hover:bg-slate-100">
+                  Solo 1h
+                </button>
+              </div>
+              <span id="inspectorBadge" class="hidden px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800"></span>
+            </div>
           </div>
+
           <div id="inspectorLists" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200">
             <div>
-              <span class="font-semibold text-emerald-700 block mb-1">✓ Disponibles:</span>
+              <span class="font-semibold text-emerald-700 block mb-1">✓ Disponibles en todo el bloque:</span>
               <div id="inspectorAvailable" class="flex flex-wrap gap-1 text-slate-700"></div>
             </div>
             <div>
-              <span class="font-semibold text-rose-700 block mb-1">✗ No disponibles:</span>
+              <span class="font-semibold text-rose-700 block mb-1">✗ No disponibles (o solo pueden 1h):</span>
               <div id="inspectorUnavailable" class="flex flex-wrap gap-1 text-slate-400"></div>
             </div>
           </div>
@@ -279,20 +336,31 @@
       settings: {
         title: "Horario de Recuperación",
         showGroupSelector: true,
-        groups: ["GR1", "GR2", "GR3"]
+        groups: ["GR1", "GR2", "GR3"],
+        blockedSlots: [] // Ej: ["0-6", "1-6"]
       },
-      responses: {} // { id_alumno: { name, group, slots: ["0-1", "2-3"], updatedAt } }
+      responses: {}
     };
 
     let mySelectedSlots = new Set();
     let isDragging = false;
     let dragMode = null; // "add" | "remove"
+
+    // Estado de bloqueo del profesor
     let isAdmin = false;
+    let isBlockEditMode = false;
+    let isAdminDragging = false;
+    let adminDragMode = null; // "block" | "unblock"
+
+    // Modo del inspector: 2 horas consecutivas por defecto
+    let inspectorDuration = 2;
+    let lastInspectedKey = null;
+
     let useFirebase = false;
     let dbRef = null;
 
     // =========================================================================
-    // INICIALIZACIÓN (FIREBASE O LOCALSTORAGE COMO RESPALDO)
+    // INICIALIZACIÓN
     // =========================================================================
     window.addEventListener("DOMContentLoaded", () => {
       buildGridHeaders();
@@ -304,6 +372,11 @@
       window.addEventListener("mouseup", () => {
         isDragging = false;
         dragMode = null;
+        if (isAdminDragging) {
+          isAdminDragging = false;
+          adminDragMode = null;
+          persistBlockedSlots();
+        }
       });
     });
 
@@ -319,17 +392,21 @@
           dbRef = db.ref("coordinau/" + EVENT_ID);
           useFirebase = true;
 
-          // Escuchar cambios en tiempo real
           dbRef.on("value", (snapshot) => {
             const data = snapshot.val() || {};
             if (data.settings) {
               appState.settings = {
                 title: data.settings.title || "Horario de Recuperación",
                 showGroupSelector: data.settings.showGroupSelector !== undefined ? data.settings.showGroupSelector : true,
-                groups: Array.isArray(data.settings.groups) ? data.settings.groups : ["GR1", "GR2", "GR3"]
+                groups: Array.isArray(data.settings.groups) ? data.settings.groups : ["GR1", "GR2", "GR3"],
+                blockedSlots: Array.isArray(data.settings.blockedSlots) ? data.settings.blockedSlots : []
               };
             }
             appState.responses = data.responses || {};
+
+            // Limpiar de la selección actual si algún bloque fue bloqueado por el profesor
+            getBlockedSet().forEach(bKey => mySelectedSlots.delete(bKey));
+
             setSyncIndicator("online", "Sincronizado en vivo (Firebase)");
             applySettingsToUI();
             renderAll();
@@ -343,19 +420,28 @@
         }
       }
 
-      // Modo LocalStorage si aún no se pega FIREBASE_CONFIG
       useFirebase = false;
-      setSyncIndicator("local", "Modo Local (Configura Firebase para sincronizar entre alumnos)");
+      setSyncIndicator("local", "Modo Local");
       const saved = localStorage.getItem("coordinau_" + EVENT_ID);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
-          if (parsed.settings) appState.settings = parsed.settings;
+          if (parsed.settings) {
+            appState.settings = {
+              ...appState.settings,
+              ...parsed.settings,
+              blockedSlots: Array.isArray(parsed.settings.blockedSlots) ? parsed.settings.blockedSlots : []
+            };
+          }
           if (parsed.responses) appState.responses = parsed.responses;
         } catch (e) {}
       }
       applySettingsToUI();
       renderAll();
+    }
+
+    function getBlockedSet() {
+      return new Set(appState.settings.blockedSlots || []);
     }
 
     function setSyncIndicator(status, text) {
@@ -377,14 +463,15 @@
     }
 
     // =========================================================================
-    // CONFIGURACIÓN DE INTERFAZ Y OPCIÓN DE MOSTRAR/OCULTAR PARALELO
+    // CONFIGURACIÓN DE INTERFAZ Y BLOQUEOS DEL PROFESOR
     // =========================================================================
     function applySettingsToUI() {
-      const { title, showGroupSelector, groups } = appState.settings;
+      const { title, showGroupSelector, groups, blockedSlots } = appState.settings;
       document.getElementById("headerTitle").textContent = title;
       document.getElementById("cfgTitle").value = title;
       document.getElementById("cfgShowGroup").checked = !!showGroupSelector;
       document.getElementById("cfgGroupsList").value = (groups || []).join(", ");
+      document.getElementById("blockedCountBadge").textContent = `${(blockedSlots || []).length} bloqueados`;
 
       const studentGroupBox = document.getElementById("studentGroupBox");
       const studentNameBox = document.getElementById("studentNameBox");
@@ -404,7 +491,6 @@
         cfgGroupOptionsBox.classList.add("opacity-40", "pointer-events-none");
       }
 
-      // Poblar selector de estudiante y filtro grupal
       const studentSelect = document.getElementById("studentGroup");
       const filterSelect = document.getElementById("filterGroupSelect");
       const currentFilter = filterSelect.value || "ALL";
@@ -433,7 +519,8 @@
       const newSettings = {
         title: newTitle,
         showGroupSelector: showGroup,
-        groups: rawGroups.length > 0 ? rawGroups : ["GR1"]
+        groups: rawGroups.length > 0 ? rawGroups : ["GR1"],
+        blockedSlots: appState.settings.blockedSlots || []
       };
 
       if (useFirebase) {
@@ -445,6 +532,61 @@
         persistLocalFallback();
         showToast("Configuración guardada localmente");
       }
+    }
+
+    function toggleBlockEditMode() {
+      if (!isAdmin) return;
+      isBlockEditMode = !isBlockEditMode;
+      const btn = document.getElementById("btnEditBlocks");
+      const banner = document.getElementById("blockEditBanner");
+
+      if (isBlockEditMode) {
+        btn.textContent = "✓ Finalizar Edición de Bloqueos";
+        btn.className = "text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 rounded transition shadow-sm";
+        banner.classList.remove("hidden");
+        showToast("Haz clic o arrastra en el Mapa del Curso para bloquear/desbloquear horas");
+      } else {
+        btn.textContent = "✏️ Editar Bloqueos en el Mapa";
+        btn.className = "text-xs bg-slate-800 hover:bg-slate-900 text-white font-semibold px-3 py-1.5 rounded transition shadow-sm";
+        banner.classList.add("hidden");
+      }
+    }
+
+    function applyAdminBlockToggle(slotKey) {
+      const set = getBlockedSet();
+      if (adminDragMode === "block") set.add(slotKey);
+      else if (adminDragMode === "unblock") set.delete(slotKey);
+      appState.settings.blockedSlots = Array.from(set);
+      mySelectedSlots.delete(slotKey);
+      document.getElementById("blockedCountBadge").textContent = `${appState.settings.blockedSlots.length} bloqueados`;
+      renderAll();
+    }
+
+    function persistBlockedSlots() {
+      if (!isAdmin) return;
+      if (useFirebase) {
+        dbRef.child("settings/blockedSlots").set(appState.settings.blockedSlots || [])
+          .then(() => showToast("Horarios bloqueados actualizados"));
+      } else {
+        persistLocalFallback();
+      }
+    }
+
+    function blockLunchHours() {
+      if (!isAdmin) return;
+      const set = getBlockedSet();
+      // Índice 6 corresponde a "13:00 - 14:00"
+      DAYS.forEach((_, dIdx) => set.add(`${dIdx}-6`));
+      appState.settings.blockedSlots = Array.from(set);
+      persistBlockedSlots();
+      renderAll();
+    }
+
+    function clearAllBlockedSlots() {
+      if (!isAdmin) return;
+      appState.settings.blockedSlots = [];
+      persistBlockedSlots();
+      renderAll();
     }
 
     // =========================================================================
@@ -459,6 +601,7 @@
 
     function toggleAdminMode() {
       if (isAdmin) {
+        if (isBlockEditMode) toggleBlockEditMode();
         enableAdminUI(false);
         showToast("Modo Profesor cerrado");
         return;
@@ -519,18 +662,21 @@
 
           td.addEventListener("mousedown", (e) => {
             e.preventDefault();
+            if (getBlockedSet().has(slotKey)) return;
             isDragging = true;
             dragMode = mySelectedSlots.has(slotKey) ? "remove" : "add";
             applySlotToggle(slotKey);
           });
 
           td.addEventListener("mouseenter", () => {
-            if (isDragging) applySlotToggle(slotKey);
+            if (isDragging && !getBlockedSet().has(slotKey)) {
+              applySlotToggle(slotKey);
+            }
           });
 
-          // Soporte táctil para móviles
           td.addEventListener("touchstart", (e) => {
             e.preventDefault();
+            if (getBlockedSet().has(slotKey)) return;
             isDragging = true;
             dragMode = mySelectedSlots.has(slotKey) ? "remove" : "add";
             applySlotToggle(slotKey);
@@ -541,7 +687,8 @@
             const touch = e.touches[0];
             const target = document.elementFromPoint(touch.clientX, touch.clientY);
             if (target && target.dataset && target.dataset.slot) {
-              applySlotToggle(target.dataset.slot);
+              const tKey = target.dataset.slot;
+              if (!getBlockedSet().has(tKey)) applySlotToggle(tKey);
             }
           }, { passive: false });
 
@@ -552,15 +699,20 @@
     }
 
     function applySlotToggle(slotKey) {
+      if (getBlockedSet().has(slotKey)) return;
       if (dragMode === "add") mySelectedSlots.add(slotKey);
       else if (dragMode === "remove") mySelectedSlots.delete(slotKey);
       updateMyGridVisuals();
     }
 
     function updateMyGridVisuals() {
+      const blocked = getBlockedSet();
       document.querySelectorAll("#myGridBody td[data-slot]").forEach(td => {
         const key = td.dataset.slot;
-        if (mySelectedSlots.has(key)) {
+        if (blocked.has(key)) {
+          td.className = "p-1.5 border border-slate-300 blocked-pattern text-slate-500 text-[10px] cursor-not-allowed font-medium";
+          td.textContent = "No disp.";
+        } else if (mySelectedSlots.has(key)) {
           td.className = "slot-cell p-1.5 border border-emerald-600 cursor-pointer bg-emerald-500 text-white font-bold";
           td.textContent = "✓";
         } else {
@@ -592,8 +744,26 @@
           const td = document.createElement("td");
           td.dataset.groupslot = slotKey;
           td.className = "slot-cell p-1.5 border border-slate-200 cursor-pointer";
-          td.addEventListener("mouseenter", () => inspectSlot(slotKey));
-          td.addEventListener("click", () => inspectSlot(slotKey));
+
+          td.addEventListener("mousedown", (e) => {
+            if (isAdmin && isBlockEditMode) {
+              e.preventDefault();
+              isAdminDragging = true;
+              adminDragMode = getBlockedSet().has(slotKey) ? "unblock" : "block";
+              applyAdminBlockToggle(slotKey);
+              return;
+            }
+            inspectSlot(slotKey);
+          });
+
+          td.addEventListener("mouseenter", () => {
+            if (isAdmin && isBlockEditMode && isAdminDragging) {
+              applyAdminBlockToggle(slotKey);
+              return;
+            }
+            if (!isBlockEditMode) inspectSlot(slotKey);
+          });
+
           tr.appendChild(td);
         });
         tbody.appendChild(tr);
@@ -618,6 +788,9 @@
         return;
       }
 
+      const blocked = getBlockedSet();
+      const validSlots = Array.from(mySelectedSlots).filter(s => !blocked.has(s));
+
       const studentKey = normalizeId(name);
       const group = appState.settings.showGroupSelector
         ? document.getElementById("studentGroup").value
@@ -626,7 +799,7 @@
       const payload = {
         name: name,
         group: group,
-        slots: Array.from(mySelectedSlots),
+        slots: validSlots,
         updatedAt: Date.now()
       };
 
@@ -642,7 +815,7 @@
     }
 
     // =========================================================================
-    // RENDERIZADO DEL MAPA DE CALOR, TOP 3 Y PARTICIPANTES
+    // RENDERIZADO DEL MAPA DE CALOR Y TOP 3 BLOQUES DE 2 HORAS SEGUIDAS
     // =========================================================================
     function getFilteredParticipants() {
       const all = Object.entries(appState.responses || {}).map(([id, val]) => ({
@@ -662,12 +835,17 @@
       updateMyGridVisuals();
       const participants = getFilteredParticipants();
       const total = participants.length;
+      const blocked = getBlockedSet();
       document.getElementById("statTotalStudents").textContent = total;
 
       const slotCounts = {};
       DAYS.forEach((_, dIdx) => {
         HOURS.forEach((__, hIdx) => {
           const key = `${dIdx}-${hIdx}`;
+          if (blocked.has(key)) {
+            slotCounts[key] = -1;
+            return;
+          }
           let count = 0;
           participants.forEach(p => {
             if (p.slots.has(key)) count++;
@@ -679,6 +857,12 @@
       // Colorear celdas del mapa grupal
       document.querySelectorAll("#groupGridBody td[data-groupslot]").forEach(td => {
         const key = td.dataset.groupslot;
+        if (blocked.has(key)) {
+          td.className = "slot-cell p-1.5 border border-slate-300 blocked-pattern text-slate-600 text-[10px] font-semibold cursor-pointer";
+          td.textContent = "Bloqueado";
+          return;
+        }
+
         const count = slotCounts[key] || 0;
         const ratio = total > 0 ? count / total : 0;
 
@@ -694,73 +878,174 @@
         td.textContent = total > 0 ? `${count}/${total}` : "0";
       });
 
-      renderTopSlots(slotCounts, total);
+      renderTopConsecutiveSlots(participants, total, blocked);
       renderParticipantsPills(participants);
+
+      if (lastInspectedKey) {
+        inspectSlot(lastInspectedKey);
+      }
     }
 
-    function renderTopSlots(slotCounts, total) {
+    // Calcula todos los pares de 2 horas seguidas (h y h+1) donde ningún bloque esté bloqueado
+    function getTwoHourBlocksRanking(participants, blocked) {
+      const pairs = [];
+      DAYS.forEach((dayName, dIdx) => {
+        for (let hIdx = 0; hIdx < HOURS.length - 1; hIdx++) {
+          const key1 = `${dIdx}-${hIdx}`;
+          const key2 = `${dIdx}-${hIdx + 1}`;
+          if (blocked.has(key1) || blocked.has(key2)) continue;
+
+          // Estudiantes disponibles en AMBAS horas seguidas
+          const availBoth = participants.filter(p => p.slots.has(key1) && p.slots.has(key2));
+          const startHour = HOURS[hIdx].split(" - ")[0];
+          const endHour = HOURS[hIdx + 1].split(" - ")[1];
+
+          pairs.push({
+            startKey: key1,
+            dIdx,
+            hIdx,
+            dayName,
+            rangeLabel: `${startHour} - ${endHour} (2h)`,
+            count: availBoth.length,
+            availStudents: availBoth
+          });
+        }
+      });
+
+      return pairs.sort((a, b) => b.count - a.count);
+    }
+
+    function renderTopConsecutiveSlots(participants, total, blocked) {
       const container = document.getElementById("topSlotsContainer");
       if (total === 0) {
         container.innerHTML = `<div class="text-xs text-slate-400 italic py-2 col-span-3">Aún no hay respuestas registradas para este filtro.</div>`;
         return;
       }
 
-      const sorted = Object.entries(slotCounts)
-        .filter(([_, c]) => c > 0)
-        .sort((a, b) => b[1] - a[1])
+      const rankedPairs = getTwoHourBlocksRanking(participants, blocked)
+        .filter(item => item.count > 0)
         .slice(0, 3);
 
-      if (sorted.length === 0) {
-        container.innerHTML = `<div class="text-xs text-slate-400 italic py-2 col-span-3">Ningún bloque horario tiene disponibilidad marcada.</div>`;
+      if (rankedPairs.length === 0) {
+        container.innerHTML = `<div class="text-xs text-slate-400 italic py-2 col-span-3">Ningún bloque de 2 horas consecutivas tiene coincidencias aún.</div>`;
         return;
       }
 
-      container.innerHTML = sorted.map(([key, count], idx) => {
-        const [dIdx, hIdx] = key.split("-").map(Number);
-        const pct = Math.round((count / total) * 100);
+      container.innerHTML = rankedPairs.map((item, idx) => {
+        const pct = Math.round((item.count / total) * 100);
         return `
-          <div onclick="inspectSlot('${key}')" class="cursor-pointer p-2.5 rounded-lg border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/70 transition flex justify-between items-center">
+          <div onclick="setInspectorDuration(2); inspectSlot('${item.startKey}')" class="cursor-pointer p-2.5 rounded-lg border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/70 transition flex justify-between items-center">
             <div>
-              <span class="text-[10px] font-bold uppercase text-emerald-700">Opción #${idx + 1}</span>
-              <div class="text-xs font-bold text-slate-800">${DAYS[dIdx]}</div>
-              <div class="text-[11px] text-slate-600">${HOURS[hIdx]}</div>
+              <span class="text-[10px] font-bold uppercase text-emerald-700">Opción #${idx + 1} (2 Horas)</span>
+              <div class="text-xs font-bold text-slate-800">${item.dayName}</div>
+              <div class="text-[11px] font-semibold text-emerald-900">${item.rangeLabel}</div>
             </div>
             <div class="text-right">
               <span class="text-sm font-extrabold text-emerald-800">${pct}%</span>
-              <span class="block text-[10px] text-slate-500">${count} de ${total}</span>
+              <span class="block text-[10px] text-slate-500">${item.count} de ${total}</span>
             </div>
           </div>
         `;
       }).join("");
     }
 
+    function setInspectorDuration(hours) {
+      inspectorDuration = hours;
+      const btn2h = document.getElementById("btnInsp2h");
+      const btn1h = document.getElementById("btnInsp1h");
+      if (hours === 2) {
+        btn2h.className = "px-2 py-0.5 bg-emerald-600 text-white font-semibold";
+        btn1h.className = "px-2 py-0.5 text-slate-600 hover:bg-slate-100";
+      } else {
+        btn1h.className = "px-2 py-0.5 bg-emerald-600 text-white font-semibold";
+        btn2h.className = "px-2 py-0.5 text-slate-600 hover:bg-slate-100";
+      }
+      if (lastInspectedKey) inspectSlot(lastInspectedKey);
+    }
+
     function inspectSlot(slotKey) {
+      lastInspectedKey = slotKey;
       const [dIdx, hIdx] = slotKey.split("-").map(Number);
       const participants = getFilteredParticipants();
-      const available = [];
-      const unavailable = [];
-
-      participants.forEach(p => {
-        const label = appState.settings.showGroupSelector ? `${p.name} (${p.group})` : p.name;
-        if (p.slots.has(slotKey)) available.push(label);
-        else unavailable.push(label);
-      });
-
-      document.getElementById("inspectorTitle").textContent = `${DAYS[dIdx]} · ${HOURS[hIdx]}`;
+      const blocked = getBlockedSet();
       const badge = document.getElementById("inspectorBadge");
-      badge.classList.remove("hidden");
-      badge.textContent = `${available.length} / ${participants.length} disponibles`;
-
       const lists = document.getElementById("inspectorLists");
-      lists.classList.remove("hidden");
 
-      document.getElementById("inspectorAvailable").innerHTML = available.length
-        ? available.map(n => `<span class="bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded">${escapeHtml(n)}</span>`).join("")
-        : `<span class="italic text-slate-400">Nadie disponible</span>`;
+      // Si el modo es de 2 horas seguidas y se tocó la última fila (19:00-20:00), retroceder 1h para formar par
+      let startH = hIdx;
+      if (inspectorDuration === 2 && startH === HOURS.length - 1) {
+        startH = HOURS.length - 2;
+      }
 
-      document.getElementById("inspectorUnavailable").innerHTML = unavailable.length
-        ? unavailable.map(n => `<span class="bg-slate-200 text-slate-600 px-2 py-0.5 rounded">${escapeHtml(n)}</span>`).join("")
-        : `<span class="italic text-slate-400">¡Todos disponibles!</span>`;
+      const key1 = `${dIdx}-${startH}`;
+      const key2 = `${dIdx}-${startH + 1}`;
+
+      if (inspectorDuration === 2) {
+        const startHourStr = HOURS[startH].split(" - ")[0];
+        const endHourStr = HOURS[startH + 1].split(" - ")[1];
+        document.getElementById("inspectorTitle").textContent = `${DAYS[dIdx]} · ${startHourStr} - ${endHourStr} (Bloque de 2h seguidas)`;
+
+        if (blocked.has(key1) || blocked.has(key2)) {
+          badge.classList.remove("hidden");
+          badge.className = "px-2 py-0.5 rounded-full font-semibold bg-rose-100 text-rose-800";
+          badge.textContent = "Franja bloqueada por el profesor";
+          lists.classList.add("hidden");
+          return;
+        }
+
+        const available = [];
+        const unavailable = [];
+        participants.forEach(p => {
+          const label = appState.settings.showGroupSelector ? `${p.name} (${p.group})` : p.name;
+          if (p.slots.has(key1) && p.slots.has(key2)) available.push(label);
+          else unavailable.push(label);
+        });
+
+        badge.classList.remove("hidden");
+        badge.className = "px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800";
+        badge.textContent = `${available.length} / ${participants.length} disponibles las 2h`;
+        lists.classList.remove("hidden");
+
+        document.getElementById("inspectorAvailable").innerHTML = available.length
+          ? available.map(n => `<span class="bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded">${escapeHtml(n)}</span>`).join("")
+          : `<span class="italic text-slate-400">Nadie disponible las 2 horas completas</span>`;
+
+        document.getElementById("inspectorUnavailable").innerHTML = unavailable.length
+          ? unavailable.map(n => `<span class="bg-slate-200 text-slate-600 px-2 py-0.5 rounded">${escapeHtml(n)}</span>`).join("")
+          : `<span class="italic text-slate-400">¡Todos disponibles!</span>`;
+
+      } else {
+        // Inspección de 1 sola hora
+        document.getElementById("inspectorTitle").textContent = `${DAYS[dIdx]} · ${HOURS[hIdx]} (1h)`;
+        if (blocked.has(slotKey)) {
+          badge.classList.remove("hidden");
+          badge.className = "px-2 py-0.5 rounded-full font-semibold bg-rose-100 text-rose-800";
+          badge.textContent = "Hora bloqueada por el profesor";
+          lists.classList.add("hidden");
+          return;
+        }
+
+        const available = [];
+        const unavailable = [];
+        participants.forEach(p => {
+          const label = appState.settings.showGroupSelector ? `${p.name} (${p.group})` : p.name;
+          if (p.slots.has(slotKey)) available.push(label);
+          else unavailable.push(label);
+        });
+
+        badge.classList.remove("hidden");
+        badge.className = "px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800";
+        badge.textContent = `${available.length} / ${participants.length} disponibles (1h)`;
+        lists.classList.remove("hidden");
+
+        document.getElementById("inspectorAvailable").innerHTML = available.length
+          ? available.map(n => `<span class="bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded">${escapeHtml(n)}</span>`).join("")
+          : `<span class="italic text-slate-400">Nadie disponible</span>`;
+
+        document.getElementById("inspectorUnavailable").innerHTML = unavailable.length
+          ? unavailable.map(n => `<span class="bg-slate-200 text-slate-600 px-2 py-0.5 rounded">${escapeHtml(n)}</span>`).join("")
+          : `<span class="italic text-slate-400">¡Todos disponibles!</span>`;
+      }
     }
 
     function renderParticipantsPills(participants) {
@@ -794,7 +1079,8 @@
       if (appState.settings.showGroupSelector && record.group) {
         document.getElementById("studentGroup").value = record.group;
       }
-      mySelectedSlots = new Set(record.slots || []);
+      const blocked = getBlockedSet();
+      mySelectedSlots = new Set((record.slots || []).filter(s => !blocked.has(s)));
       updateMyGridVisuals();
       showToast(`Cargados los datos de ${record.name} para editar`);
     }
@@ -834,6 +1120,7 @@
         "Alejandro Hidalgo", "Martina Castro", "Diego Cevallos", "Paula Naranjo"
       ];
       const groups = appState.settings.groups.length ? appState.settings.groups : ["GR1"];
+      const blocked = getBlockedSet();
       const simulated = {};
 
       sampleNames.forEach((name, idx) => {
@@ -841,10 +1128,12 @@
         const slots = [];
         DAYS.forEach((_, dIdx) => {
           HOURS.forEach((__, hIdx) => {
-            // Mayor probabilidad el miércoles y jueves en la tarde
-            const isPeak = (dIdx === 2 || dIdx === 3) && (hIdx >= 7 && hIdx <= 9);
-            if (Math.random() < (isPeak ? 0.85 : 0.28)) {
-              slots.push(`${dIdx}-${hIdx}`);
+            const key = `${dIdx}-${hIdx}`;
+            if (blocked.has(key)) return;
+            // Mayor probabilidad el miércoles y jueves de 14:00 a 16:00 (índices 7 y 8)
+            const isPeak = (dIdx === 2 || dIdx === 3) && (hIdx === 7 || hIdx === 8);
+            if (Math.random() < (isPeak ? 0.90 : 0.30)) {
+              slots.push(key);
             }
           });
         });
@@ -868,14 +1157,42 @@
 
     function exportCSV() {
       const participants = getFilteredParticipants();
+      const blocked = getBlockedSet();
       if (participants.length === 0) {
         alert("No hay datos para exportar.");
         return;
       }
-      let rows = [["Dia", "Hora", "Disponibles", "Total_Curso", "Porcentaje", "Lista_Estudiantes_Disponibles"]];
+
+      let rows = [
+        ["=== RESUMEN DE BLOQUES DE 2 HORAS SEGUIDAS ==="],
+        ["Dia", "Franja_2_Horas", "Disponibles_Ambas_Horas", "Total_Curso", "Porcentaje", "Estudiantes_Disponibles"]
+      ];
+
+      const twoHourPairs = getTwoHourBlocksRanking(participants, blocked);
+      twoHourPairs.forEach(item => {
+        const names = item.availStudents.map(p => appState.settings.showGroupSelector ? `${p.name} (${p.group})` : p.name);
+        const pct = Math.round((item.count / participants.length) * 100);
+        rows.push([
+          item.dayName,
+          item.rangeLabel,
+          item.count,
+          participants.length,
+          `${pct}%`,
+          `"${names.join("; ")}"`
+        ]);
+      });
+
+      rows.push([]);
+      rows.push(["=== DETALLE POR HORA INDIVIDUAL (1 HORA) ==="]);
+      rows.push(["Dia", "Hora", "Estado", "Disponibles", "Total_Curso", "Porcentaje", "Estudiantes_Disponibles"]);
+
       DAYS.forEach((day, dIdx) => {
         HOURS.forEach((hour, hIdx) => {
           const key = `${dIdx}-${hIdx}`;
+          if (blocked.has(key)) {
+            rows.push([day, hour, "BLOQUEADO POR PROFESOR", 0, participants.length, "0%", '""']);
+            return;
+          }
           const availNames = participants
             .filter(p => p.slots.has(key))
             .map(p => appState.settings.showGroupSelector ? `${p.name} (${p.group})` : p.name);
@@ -883,6 +1200,7 @@
           rows.push([
             day,
             hour,
+            "Habilitado",
             availNames.length,
             participants.length,
             `${pct}%`,
@@ -896,7 +1214,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "disponibilidad_recuperacion.csv";
+      a.download = "disponibilidad_recuperacion_2h.csv";
       a.click();
     }
 
