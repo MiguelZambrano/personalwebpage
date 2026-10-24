@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoordinaU - Coordinador de Horarios de Recuperación</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        /* Prevenir scroll al arrastrar sobre la cuadrícula en pantallas táctiles */
+        .grid-touch-area {
+            touch-action: none;
+        }
+        /* Scrollbars sutiles */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .slot-cell {
+            transition: transform 0.05s ease, background-color 0.1s ease;
+        }
+        .slot-cell:hover {
+             z-index: 10;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- BARRA DE NAVEGACIÓN SUPERIOR -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap justify-between items-center gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="bg-emerald-500 p-2 rounded-lg text-slate-900 font-bold flex items-center justify-center">
+                    <i data-lucide="calendar-clock" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-lg font-bold tracking-tight">CoordinaU</h1>
+                        <span id="sync-badge" class="text-[11px] bg-slate-800 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Sincronizado
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-400 hidden sm:block">Coordinación de clases de recuperación y tutorías</p>
+                </div>
+            </div>
+
+            <!-- Botones de Herramientas del Profesor y Portabilidad -->
+            <div class="flex flex-wrap items-center gap-2">
+                <button id="btn-simulate" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium px-3 py-2 rounded-lg shadow-sm flex items-center gap-1.5 transition">
+                    <i data-lucide="users" class="w-4 h-4"></i>
+                    <span>Simular 15 Alumnos</span>
+                </button>
+                
+                <button id="btn-config-event" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+                    <i data-lucide="settings" class="w-4 h-4"></i>
+                    <span>Configurar Horario</span>
+                </button>
+
+                <div class="relative inline-block">
+                    <button id="btn-export-menu" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        <span class="hidden md:inline">Datos / GitHub</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- CABECERA DEL EVENTO Y TOP 3 MEJORES HORARIOS -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Información de la Materia / Evento -->
+            <div class="lg:col-span-5 bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <span id="event-course-tag" class="text-xs font-semibold uppercase tracking-wider bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md border border-blue-200">
+                            Curso Académico
+                        </span>
+                        <span class="text-xs text-slate-500 flex items-center gap-1">
+                            <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                            Bloques de <span id="event-interval-label">60</span> min
+                        </span>
+                    </div>
+                    <h2 id="event-title-display" class="text-xl sm:text-2xl font-bold text-slate-900">
+                        Recuperación de Cálculo en una Variable
+                    </h2>
+                    <p id="event-desc-display" class="text-sm text-slate-600 mt-1">
+                        Marca todos los bloques horarios en los que tienes disponibilidad para asistir a la sesión de recuperación de 2 horas.
+                    </p>
+                </div>
+
+                <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="user-check" class="w-4 h-4 text-emerald-600"></i>
+                        <span>Total registrados: <strong id="total-participants-count" class="text-slate-800 text-sm">0</strong> alumnos</span>
+                    </div>
+                    <button id="btn-clear-all" class="text-rose-600 hover:text-rose-700 font-medium flex items-center gap-1">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Reiniciar lista
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tarjeta Resumen: Top 3 Mejores Horarios -->
+            <div class="lg:col-span-7 bg-gradient-to-br from-slate-900 to-slate-800 text-white p-5 rounded-xl shadow-sm flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="p-1.5 bg-amber-400/20 text-amber-300 rounded-lg">
+                            <i data-lucide="award" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-sm sm:text-base">Mejores Horarios Sugeridos (Top 3)</h3>
+                            <p class="text-xs text-slate-400">Calculados automáticamente según la mayor coincidencia de estudiantes</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="top-slots-container" class="grid grid-cols-1 sm:grid-cols-3 gap-3 my-auto">
+                    <!-- Se llena dinámicamente con JS -->
+                    <div class="bg-slate-800/80 border border-slate-700 rounded-lg p-3 text-center text-slate-400 text-xs py-6 sm:col-span-3">
+                        Aún no hay suficientes disponibilidades registradas. Ingresa tus horarios o haz clic en "Simular 15 Alumnos".
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PANEL DE REGISTRO DE ALUMNO Y CONTROLES DE MODO MÓVIL -->
+        <div class="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-slate-200">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <!-- Formulario de Identificación del Estudiante -->
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 flex-grow">
+                    <div class="flex-grow max-w-xs">
+                        <label for="student-name" class="block text-xs font-semibold text-slate-700 mb-1">
+                            Tu Nombre y Apellido <span class="text-rose-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <input type="text" id="student-name" placeholder="Ej. Mateo Cevallos" 
+                                class="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none">
+                            <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+                        </div>
+                    </div>
+
+                    <div class="w-full sm:w-36">
+                        <label for="student-parallel" class="block text-xs font-semibold text-slate-700 mb-1">
+                            Paralelo / Grupo
+                        </label>
+                        <input type="text" id="student-parallel" placeholder="Ej. GR1 / Par 2" 
+                            class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none">
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button id="btn-login-student" class="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm px-4 py-2 rounded-lg shadow-sm transition flex items-center justify-center gap-1.5 w-full sm:w-auto">
+                            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                            <span id="btn-login-text">Cargar / Editar mis horas</span>
+                        </button>
+                        <button id="btn-clear-my-slots" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium px-3 py-2.5 rounded-lg transition" title="Limpiar mi selección">
+                            Limpiar mis horas
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Selector de Estudiante existente para edición rápida -->
+                <div class="flex items-center gap-2 border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100">
+                    <label for="quick-select-student" class="text-xs text-slate-500 whitespace-nowrap">Alumnos registrados:</label>
+                    <select id="quick-select-student" class="text-xs border border-slate-300 rounded-lg px-2.5 py-2 bg-slate-50 text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="">-- Seleccionar para ver/editar --</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Barra de estado del alumno activo -->
+            <div id="active-student-banner" class="mt-3 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div class="flex items-center gap-2 text-slate-600">
+                    <span id="student-status-dot" class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                    <span id="student-status-msg">Ingresa tu nombre arriba para empezar a pintar tu disponibilidad en la cuadrícula izquierda.</span>
+                </div>
+                <div class="flex items-center gap-4 text-slate-500">
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-3.5 h-3.5 rounded bg-emerald-500 inline-block border border-emerald-600"></span> Disponible
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-3.5 h-3.5 rounded bg-slate-100 inline-block border border-slate-300"></span> No disponible
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- PESTAÑAS PARA MÓVIL (Mi Disponibilidad vs Disponibilidad del Grupo) -->
+        <div class="flex lg:hidden bg-slate-200 p-1 rounded-xl">
+            <button id="tab-mobile-personal" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white text-slate-900 shadow-sm transition">
+                1. Mi Disponibilidad
+            </button>
+            <button id="tab-mobile-group" class="flex-1 py-2 text-xs font-bold rounded-lg text-slate-600 hover:text-slate-900 transition">
+                2. Mapa del Grupo (<span id="mobile-tab-count">0</span>)
+            </button>
+        </div>
+
+        <!-- ÁREA PRINCIPAL DE CUADRÍCULAS (ESTILO WHEN2MEET) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+            <!-- COLUMNA 1: CUADRÍCULA PERSONAL ("MI DISPONIBILIDAD") -->
+            <div id="panel-personal-grid" class="lg:col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                            <i data-lucide="mouse-pointer-click" class="w-4 h-4 text-emerald-600"></i>
+                            Mi Disponibilidad
+                        </h3>
+                        <p class="text-[11px] text-slate-500">Haz clic y arrastra para marcar o desmarcar bloques</p>
+                    </div>
+                    <span id="my-selected-count" class="text-xs font-semibold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-200">
+                        0 bloques
+                    </span>
+                </div>
+
+                <div class="p-3 overflow-x-auto">
+                    <div id="personal-grid-container" class="grid-touch-area min-w-[320px]">
+                        <!-- Generado dinámicamente por JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- COLUMNA 2: MAPA DE CALOR GRUPAL + INSPECTOR DE ALUMNOS -->
+            <div id="panel-group-grid" class="hidden lg:block lg:col-span-7 space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                                <i data-lucide="flame" class="w-4 h-4 text-blue-600"></i>
+                                Disponibilidad del Grupo (Mapa de Calor)
+                            </h3>
+                            <p class="text-[11px] text-slate-500">Pasa el ratón o haz clic en un bloque para ver quiénes pueden asistir</p>
+                        </div>
+
+                        <!-- Escala de colores del Mapa de Calor -->
+                        <div class="flex items-center gap-1.5 text-[11px] text-slate-600">
+                            <span>0%</span>
+                            <div class="flex h-3 rounded overflow-hidden border border-slate-300">
+                                <span class="w-4 bg-white"></span>
+                                <span class="w-4 bg-emerald-100"></span>
+                                <span class="w-4 bg-emerald-300"></span>
+                                <span class="w-4 bg-emerald-500"></span>
+                                <span class="w-4 bg-emerald-700"></span>
+                                <span class="w-4 bg-emerald-900"></span>
+                            </div>
+                            <span>100%</span>
+                        </div>
+                    </div>
+
+                    <div class="p-3 overflow-x-auto">
+                        <div id="group-grid-container" class="min-w-[340px]">
+                            <!-- Generado dinámicamente por JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL DETALLADO DEL BLOQUE SELECCIONADO / HOVER -->
+                <div id="slot-inspector" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 transition-all">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+                        <div class="flex items-center gap-2">
+                            <div id="inspector-badge" class="w-3 h-8 rounded bg-slate-300"></div>
+                            <div>
+                                <h4 id="inspector-title" class="font-bold text-slate-800 text-sm">
+                                    Pasa el cursor o toca cualquier bloque del mapa grupal
+                                </h4>
+                                <p id="inspector-subtitle" class="text-xs text-slate-500">
+                                    Aquí verás la lista exacta de estudiantes disponibles y ausentes en esa hora.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span id="inspector-ratio" class="text-sm font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full">
+                                - / -
+                            </span>
+                            <p id="inspector-lock-hint" class="text-[10px] text-slate-400 mt-1 hidden">
+                                🔒 Bloque fijado (clic para soltar)
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                        <!-- Lista de Disponibles -->
+                        <div class="bg-emerald-50/50 border border-emerald-100 rounded-lg p-3">
+                            <div class="font-semibold text-emerald-800 mb-2 flex items-center justify-between">
+                                <span class="flex items-center gap-1">
+                                    <i data-lucide="check" class="w-3.5 h-3.5"></i> Disponibles
+                                </span>
+                                <span id="inspector-avail-count" class="bg-emerald-200/70 text-emerald-900 px-1.5 py-0.5 rounded text-[10px]">0</span>
+                            </div>
+                            <div id="inspector-avail-list" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                                <span class="text-slate-400 italic">Selecciona un bloque horario...</span>
+                            </div>
+                        </div>
+
+                        <!-- Lista de No Disponibles -->
+                        <div class="bg-rose-50/40 border border-rose-100 rounded-lg p-3">
+                            <div class="font-semibold text-rose-800 mb-2 flex items-center justify-between">
+                                <span class="flex items-center gap-1">
+                                    <i data-lucide="x" class="w-3.5 h-3.5"></i> No Disponibles
+                                </span>
+                                <span id="inspector-unavail-count" class="bg-rose-200/70 text-rose-900 px-1.5 py-0.5 rounded text-[10px]">0</span>
+                            </div>
+                            <div id="inspector-unavail-list" class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto">
+                                <span class="text-slate-400 italic">Selecciona un bloque horario...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-white border-t border-slate-200 mt-12 py-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+            <p><strong>CoordinaU</strong> — Herramienta de código abierto para coordinación docente (Estilo When2Meet en Español).</p>
+            <p>Listo para alojar gratis en <strong>GitHub Pages</strong>.</p>
+        </div>
+    </footer>
+
+    <!-- MODAL 1: CONFIGURACIÓN DEL HORARIO DEL PROFESOR -->
+    <div id="modal-config" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden border border-slate-200">
+            <div class="p-5 bg-slate-900 text-white flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="sliders" class="w-5 h-5 text-emerald-400"></i>
+                    <h3 class="font-bold text-base">Configuración del Evento (Profesor)</h3>
+                </div>
+                <button id="btn-close-config" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-4 text-sm max-h-[80vh] overflow-y-auto">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Título de la Clase / Tutoría</label>
+                    <input type="text" id="cfg-title" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none" 
+                        value="Recuperación de Cálculo en una Variable">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Código / Materia</label>
+                        <input type="text" id="cfg-course" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none" 
+                            value="MAT-101 • Semestre 2026">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Duración por Bloque</label>
+                        <select id="cfg-interval" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-emerald-500 outline-none">
+                            <option value="60">60 minutos (1 hora)</option>
+                            <option value="30">30 minutos (Media hora)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Instrucciones para los alumnos</label>
+                    <textarea id="cfg-desc" rows="2" class="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none">Marca todos los bloques horarios en los que tienes disponibilidad para asistir a la sesión de recuperación de 2 horas.</textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Días Habilitados</label>
+                    <div id="cfg-days-list" class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                        <label class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg p-2 cursor-pointer text-xs">
+                            <input type="checkbox" value="Lun" checked class="accent-emerald-600"> Lun
+                        </label>
+                        <label class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg p-2 cursor-pointer text-xs">
+                            <input type="checkbox" value="Mar" checked class="accent-emerald-600"> Mar
+                        </label>
+                        <label class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg p-2 cursor-pointer text-xs">
+                            <input type="checkbox" value="Mié" checked class="accent-emerald-600"> Mié
+                        </label>
+                        <label class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg p-2 cursor-pointer text-xs">
+                            <input type="checkbox" value="Jue" checked class="accent-emerald-600"> Jue
+                        </label>
+                        <label class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg p-2 cursor-pointer text-xs">
+                            <input type="checkbox" value="Vie" checked class="accent-emerald-600"> Vie
+                        </label>
+                        <label class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg p-2 cursor-pointer text-xs">
+                            <input type="checkbox" value="Sáb" class="accent-emerald-600"> Sáb
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Hora de Inicio</label>
+                        <select id="cfg-start-hour" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
+                            <option value="7">07:00</option>
+                            <option value="8">08:00</option>
+                            <option value="9">09:00</option>
+                            <option value="10">10:00</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Hora de Fin</label>
+                        <select id="cfg-end-hour" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
+                            <option value="16">16:00</option>
+                            <option value="18">18:00</option>
+                            <option value="19" selected>19:00</option>
+                            <option value="20">20:00</option>
+                            <option value="21">21:00</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
+                <button id="btn-cancel-config" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900">Cancelar</button>
+                <button id="btn-save-config" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-sm">
+                    Guardar Cambios
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: EXPORTAR / IMPORTAR Y GUÍA PARA GITHUB PAGES -->
+    <div id="modal-export" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full overflow-hidden border border-slate-200">
+            <div class="p-5 bg-slate-900 text-white flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="github" class="w-5 h-5 text-emerald-400"></i>
+                    <h3 class="font-bold text-base">Exportar Datos y Uso en GitHub Pages</h3>
+                </div>
+                <button id="btn-close-export" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-5 text-xs sm:text-sm max-h-[80vh] overflow-y-auto">
+                <!-- Descarga rápida en CSV / JSON -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button id="btn-download-csv" class="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-4 rounded-xl shadow-sm transition">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                        Descargar Reporte en Excel (CSV)
+                    </button>
+                    <button id="btn-copy-json" class="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold py-3 px-4 rounded-xl shadow-sm transition">
+                        <i data-lucide="copy" class="w-4 h-4"></i>
+                        Copiar Respaldo JSON
+                    </button>
+                </div>
+
+                <!-- Importar Respaldo JSON -->
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2">
+                    <label class="block font-bold text-slate-700 text-xs uppercase">Restaurar o Importar datos JSON</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="import-json-input" placeholder='Pega aquí el código JSON exportado...' 
+                            class="flex-grow border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500 outline-none">
+                        <button id="btn-import-json" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-1.5 rounded-lg text-xs">
+                            Importar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Explicación paso a paso para GitHub Pages -->
+                <div class="border-t border-slate-200 pt-4 space-y-2 text-xs text-slate-600">
+                    <h4 class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                        <i data-lucide="help-circle" class="w-4 h-4 text-indigo-600"></i>
+                        ¿Cómo subir este archivo a tu repositorio de GitHub Pages?
+                    </h4>
+                    <ol class="list-decimal list-inside space-y-1.5 leading-relaxed">
+                        <li>Guarda este archivo como <code class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-800 font-mono">index.html</code> y súbelo a tu repositorio en GitHub.</li>
+                        <li>En este entorno interactivo, las respuestas de tus alumnos ya se sincronizan automáticamente en tiempo real usando Firebase Cloud Firestore.</li>
+                        <li>Si deseas alojarlo en tu propio <strong>GitHub Pages externo</strong> para que decenas de alumnos entren desde sus casas, pega debajo la configuración de tu proyecto gratuito de Firebase (Consola Firebase &rarr; Configuración del Proyecto &rarr; Web App):</li>
+                    </ol>
+                    <div class="mt-2">
+                        <label class="block font-semibold text-slate-700 mb-1">Credenciales Firebase personalizadas (Opcional para GitHub Pages externo):</label>
+                        <textarea id="custom-firebase-input" rows="3" placeholder='{"apiKey": "AIza...", "authDomain": "...", "projectId": "..."}' 
+                            class="w-full font-mono text-[11px] border border-slate-300 rounded-lg p-2 bg-slate-50"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+                <button id="btn-done-export" class="px-5 py-2 bg-slate-900 text-white text-xs font-semibold rounded-lg">
+                    Cerrar ventana
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST DE NOTIFICACIÓN (Sin usar alert()) -->
+    <div id="toast-notification" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg border border-slate-700 text-xs font-medium flex items-center gap-2.5 transform translate-y-20 opacity-0 transition-all duration-300 z-50 pointer-events-none">
+        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+        <span id="toast-message">Acción completada</span>
+    </div>
+
+    <!-- MODAL DE CONFIRMACIÓN PERSONALIZADO -->
+    <div id="modal-confirm" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-5 border border-slate-200">
+            <h4 id="confirm-title" class="font-bold text-slate-900 text-base">¿Confirmar acción?</h4>
+            <p id="confirm-desc" class="text-xs text-slate-600 mt-1">Esta acción reiniciará los registros actuales.</p>
+            <div class="mt-4 flex justify-end gap-2">
+                <button id="btn-confirm-cancel" class="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                <button id="btn-confirm-ok" class="px-4 py-1.5 text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white rounded-lg">Sí, continuar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LÓGICA DE APLICACIÓN Y FIREBASE FIRESTORE -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ==========================================
+        // 1. ESTADO DE LA APLICACIÓN
+        // ==========================================
+        let eventConfig = {
+            title: "Recuperación de Cálculo en una Variable",
+            course: "MAT-101 • Semestre 2026",
+            description: "Marca todos los bloques horarios en los que tienes disponibilidad para asistir a la sesión de recuperación de 2 horas.",
+            days: ["Lun", "Mar", "Mié", "Jue", "Vie"],
+            startHour: 7,
+            endHour: 19,
+            interval: 60 // 60 o 30 minutos
+        };
+
+        // Mapa de participantes: { [studentId]: { id, name, parallel, slots: ["Lun_07:00", ...] } }
+        let participants = {};
+        let currentStudentId = null;
+        let isDragging = false;
+        let dragTargetValue = true; // true = marcando disponible, false = desmarcando
+        let lockedSlotKey = null;   // Si el profesor hace clic en un bloque para dejarlo fijo en el inspector
+
+        // Variables de Firebase
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        let isCloudActive = false;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'coordinau-when2meet-es';
+
+        // ==========================================
+        // 2. UTILIDADES DE INTERFAZ (TOAST Y MODALES)
+        // ==========================================
+        function showToast(msg) {
+            const toast = document.getElementById('toast-notification');
+            const text = document.getElementById('toast-message');
+            text.textContent = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        let confirmCallback = null;
+        function askConfirm(title, desc, onOk) {
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-desc').textContent = desc;
+            confirmCallback = onOk;
+            document.getElementById('modal-confirm').classList.remove('hidden');
+        }
+
+        document.getElementById('btn-confirm-cancel').addEventListener('click', () => {
+            document.getElementById('modal-confirm').classList.add('hidden');
+            confirmCallback = null;
+        });
+
+        document.getElementById('btn-confirm-ok').addEventListener('click', () => {
+            document.getElementById('modal-confirm').classList.add('hidden');
+            if (confirmCallback) confirmCallback();
+            confirmCallback = null;
+        });
+
+        // ==========================================
+        // 3. GENERACIÓN DE BLOQUES HORARIOS
+        // ==========================================
+        function generateTimeSlots() {
+            const times = [];
+            for (let h = eventConfig.startHour; h < eventConfig.endHour; h++) {
+                const hh = String(h).padStart(2, '0');
+                times.push(`${hh}:00`);
+                if (eventConfig.interval === 30) {
+                    times.push(`${hh}:30`);
+                }
+            }
+            return times;
+        }
+
+        function formatRangeLabel(timeStr) {
+            const [hh, mm] = timeStr.split(':').map(Number);
+            let totalMinutes = hh * 60 + mm + eventConfig.interval;
+            const endH = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+            const endM = String(totalMinutes % 60).padStart(2, '0');
+            return `${timeStr} - ${endH}:${endM}`;
+        }
+
+        const DAY_FULL_NAMES = {
+            "Lun": "Lunes",
+            "Mar": "Martes",
+            "Mié": "Miércoles",
+            "Jue": "Jueves",
+            "Vie": "Viernes",
+            "Sáb": "Sábado"
+        };
+
+        // ==========================================
+        // 4. RENDERIZADO DE LAS CUADRÍCULAS
+        // ==========================================
+        function renderAll() {
+            // Actualizar textos de cabecera
+            document.getElementById('event-title-display').textContent = eventConfig.title;
+            document.getElementById('event-course-tag').textContent = eventConfig.course;
+            document.getElementById('event-desc-display').textContent = eventConfig.description;
+            document.getElementById('event-interval-label').textContent = eventConfig.interval;
+
+            const studentList = Object.values(participants);
+            document.getElementById('total-participants-count').textContent = studentList.length;
+            document.getElementById('mobile-tab-count').textContent = studentList.length;
+
+            renderStudentQuickSelector(studentList);
+            renderPersonalGrid();
+            renderGroupGrid();
+            renderTopBestSlots();
+            updateActiveStudentBanner();
+
+            if (lockedSlotKey) {
+                inspectSlot(lockedSlotKey, true);
+            }
+        }
+
+        function renderStudentQuickSelector(studentList) {
+            const select = document.getElementById('quick-select-student');
+            const prevVal = select.value;
+            select.innerHTML = `<option value="">-- Ver/Editar alumno (${studentList.length}) --</option>`;
+            studentList.sort((a, b) => a.name.localeCompare(b.name)).forEach(st => {
+                const opt = document.createElement('option');
+                opt.value = st.id;
+                opt.textContent = st.parallel ? `${st.name} (${st.parallel})` : st.name;
+                select.appendChild(opt);
+            });
+            if (currentStudentId && participants[currentStudentId]) {
+                select.value = currentStudentId;
+            } else {
+                select.value = prevVal;
+            }
+        }
+
+        // Cuadrícula Izquierda: Mi Disponibilidad
+        function renderPersonalGrid() {
+            const container = document.getElementById('personal-grid-container');
+            const times = generateTimeSlots();
+            const days = eventConfig.days;
+            const mySlots = new Set(
+                (currentStudentId && participants[currentStudentId])
+                    ? participants[currentStudentId].slots
+                    : []
+            );
+
+            document.getElementById('my-selected-count').textContent = `${mySlots.size} bloques`;
+
+            let html = `<div class="grid" style="grid-template-columns: 62px repeat(${days.length}, minmax(44px, 1fr));">`;
+            
+            // Encabezado de Días
+            html += `<div class="h-8"></div>`;
+            days.forEach(day => {
+                html += `<div class="h-8 flex items-center justify-center font-bold text-xs text-slate-700 bg-slate-100/80 border-b border-r border-slate-200 first:border-l rounded-t">${day}</div>`;
+            });
+
+            // Filas por cada bloque horario
+            times.forEach((time) => {
+                html += `<div class="pr-2 text-[11px] font-medium text-slate-500 flex items-center justify-end h-7 border-r border-slate-200">${time}</div>`;
+                days.forEach(day => {
+                    const slotKey = `${day}_${time}`;
+                    const isAvailable = mySlots.has(slotKey);
+                    const bgClass = isAvailable
+                        ? 'bg-emerald-500 border-emerald-600 text-white shadow-inner'
+                        : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-transparent';
+                    
+                    html += `
+                        <div data-slot="${slotKey}" 
+                             class="personal-slot slot-cell h-7 border-b border-r ${bgClass} cursor-pointer flex items-center justify-center text-[10px] font-bold select-none">
+                             ✓
+                        </div>`;
+                });
+            });
+
+            html += `</div>`;
+            container.innerHTML = html;
+
+            // Eventos de ratón y táctiles para pintar arrastrando (Click & Drag)
+            const cells = container.querySelectorAll('.personal-slot');
+            cells.forEach(cell => {
+                cell.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    handleStartDrag(cell.dataset.slot);
+                });
+                cell.addEventListener('mouseenter', () => {
+                    if (isDragging) {
+                        handleEnterDrag(cell.dataset.slot);
+                    }
+                });
+            });
+
+            // Soporte táctil para móviles
+            container.addEventListener('touchstart', (e) => {
+                const touch = e.touches[0];
+                const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (target && target.dataset && target.dataset.slot) {
+                    e.preventDefault();
+                    handleStartDrag(target.dataset.slot);
+                }
+            }, { passive: false });
+
+            container.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                const touch = e.touches[0];
+                const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                if (target && target.dataset && target.dataset.slot) {
+                    e.preventDefault();
+                    handleEnterDrag(target.dataset.slot);
+                }
+            }, { passive: false });
+        }
+
+        // Cuadrícula Derecha: Mapa de Calor del Grupo
+        function renderGroupGrid() {
+            const container = document.getElementById('group-grid-container');
+            const times = generateTimeSlots();
+            const days = eventConfig.days;
+            const studentList = Object.values(participants);
+            const totalStudents = studentList.length;
+
+            let html = `<div class="grid" style="grid-template-columns: 62px repeat(${days.length}, minmax(48px, 1fr));">`;
+
+            // Encabezado de Días
+            html += `<div class="h-8"></div>`;
+            days.forEach(day => {
+                html += `<div class="h-8 flex items-center justify-center font-bold text-xs text-slate-700 bg-slate-100/80 border-b border-r border-slate-200">${day}</div>`;
+            });
+
+            times.forEach(time => {
+                html += `<div class="pr-2 text-[11px] font-medium text-slate-500 flex items-center justify-end h-7 border-r border-slate-200">${time}</div>`;
+                days.forEach(day => {
+                    const slotKey = `${day}_${time}`;
+                    let count = 0;
+                    studentList.forEach(st => {
+                        if (st.slots && st.slots.includes(slotKey)) count++;
+                    });
+
+                    const ratio = totalStudents > 0 ? count / totalStudents : 0;
+                    const { bgStyle, textClass } = getHeatmapStyle(ratio, count);
+                    const isLocked = lockedSlotKey === slotKey;
+                    const ringClass = isLocked ? 'ring-2 ring-amber-400 z-10' : '';
+
+                    html += `
+                        <div data-group-slot="${slotKey}" 
+                             style="${bgStyle}"
+                             class="group-slot slot-cell h-7 border-b border-r border-slate-200/80 cursor-pointer flex items-center justify-center text-[11px] font-semibold ${textClass} ${ringClass}">
+                             ${count > 0 ? count : ''}
+                        </div>`;
+                });
+            });
+
+            html += `</div>`;
+            container.innerHTML = html;
+
+            // Eventos para inspeccionar quiénes están disponibles en cada bloque
+            const groupCells = container.querySelectorAll('.group-slot');
+            groupCells.forEach(cell => {
+                const slotKey = cell.dataset.groupSlot;
+                cell.addEventListener('mouseenter', () => {
+                    if (!lockedSlotKey) {
+                        inspectSlot(slotKey, false);
+                    }
+                });
+                cell.addEventListener('click', () => {
+                    if (lockedSlotKey === slotKey) {
+                        lockedSlotKey = null;
+                        document.getElementById('inspector-lock-hint').classList.add('hidden');
+                    } else {
+                        lockedSlotKey = slotKey;
+                        document.getElementById('inspector-lock-hint').classList.remove('hidden');
+                    }
+                    renderGroupGrid();
+                    inspectSlot(slotKey, true);
+                });
+            });
+        }
+
+        function getHeatmapStyle(ratio, count) {
+            if (count === 0) {
+                return { bgStyle: 'background-color: #ffffff;', textClass: 'text-slate-300' };
+            }
+            if (ratio <= 0.25) {
+                return { bgStyle: 'background-color: #d1fae5;', textClass: 'text-emerald-900' };
+            }
+            if (ratio <= 0.50) {
+                return { bgStyle: 'background-color: #6ee7b7;', textClass: 'text-emerald-950' };
+            }
+            if (ratio <= 0.75) {
+                return { bgStyle: 'background-color: #10b981;', textClass: 'text-white' };
+            }
+            if (ratio < 0.95) {
+                return { bgStyle: 'background-color: #047857;', textClass: 'text-white' };
+            }
+            return { bgStyle: 'background-color: #064e3b;', textClass: 'text-amber-200 font-bold' };
+        }
+
+        // ==========================================
+        // 5. INSPECTOR DETALLADO Y TOP 3 HORARIOS
+        // ==========================================
+        function inspectSlot(slotKey, isLocked) {
+            const [day, time] = slotKey.split('_');
+            const studentList = Object.values(participants);
+            const available = [];
+            const unavailable = [];
+
+            studentList.forEach(st => {
+                if (st.slots && st.slots.includes(slotKey)) {
+                    available.push(st);
+                } else {
+                    unavailable.push(st);
+                }
+            });
+
+            const dayName = DAY_FULL_NAMES[day] || day;
+            const rangeStr = formatRangeLabel(time);
+
+            document.getElementById('inspector-title').textContent = `${dayName}, ${rangeStr}`;
+            document.getElementById('inspector-subtitle').textContent = isLocked
+                ? 'Vista fijada. Haz clic en el bloque nuevamente para desbloquear.'
+                : 'Mostrando detalle en tiempo real del bloque seleccionado.';
+
+            const pct = studentList.length > 0 ? Math.round((available.length / studentList.length) * 100) : 0;
+            document.getElementById('inspector-ratio').textContent = `${available.length} / ${studentList.length} (${pct}%)`;
+            document.getElementById('inspector-avail-count').textContent = available.length;
+            document.getElementById('inspector-unavail-count').textContent = unavailable.length;
+
+            const availContainer = document.getElementById('inspector-avail-list');
+            const unavailContainer = document.getElementById('inspector-unavail-list');
+
+            if (available.length === 0) {
+                availContainer.innerHTML = `<span class="text-slate-400 italic">Ningún alumno disponible en este bloque.</span>`;
+            } else {
+                availContainer.innerHTML = available.map(st => `
+                    <span class="inline-flex items-center gap-1 bg-white border border-emerald-200 text-emerald-900 px-2 py-0.5 rounded-md shadow-2xs font-medium">
+                        ${escapeHtml(st.name)}
+                        ${st.parallel ? `<small class="text-emerald-600 font-normal">(${escapeHtml(st.parallel)})</small>` : ''}
+                    </span>
+                `).join('');
+            }
+
+            if (unavailable.length === 0) {
+                unavailContainer.innerHTML = `<span class="text-emerald-600 font-medium">¡Todos los alumnos registrados están disponibles!</span>`;
+            } else {
+                unavailContainer.innerHTML = unavailable.map(st => `
+                    <span class="inline-flex items-center gap-1 bg-white border border-rose-200 text-rose-800 px-2 py-0.5 rounded-md opacity-80">
+                        ${escapeHtml(st.name)}
+                        ${st.parallel ? `<small class="text-rose-500">(${escapeHtml(st.parallel)})</small>` : ''}
+                    </span>
+                `).join('');
+            }
+        }
+
+        function renderTopBestSlots() {
+            const container = document.getElementById('top-slots-container');
+            const studentList = Object.values(participants);
+            const total = studentList.length;
+
+            if (total === 0) {
+                container.innerHTML = `
+                    <div class="bg-slate-800/80 border border-slate-700 rounded-lg p-3 text-center text-slate-400 text-xs py-6 sm:col-span-3">
+                        Aún no hay alumnos registrados. Ingresa tus horarios o haz clic en <strong>"Simular 15 Alumnos"</strong> arriba para probar el mapa de calor.
+                    </div>`;
+                return;
+            }
+
+            const times = generateTimeSlots();
+            const days = eventConfig.days;
+            const allCounts = [];
+
+            days.forEach(day => {
+                times.forEach(time => {
+                    const slotKey = `${day}_${time}`;
+                    let count = 0;
+                    studentList.forEach(st => {
+                        if (st.slots && st.slots.includes(slotKey)) count++;
+                    });
+                    if (count > 0) {
+                        allCounts.push({ slotKey, day, time, count });
+                    }
+                });
+            });
+
+            allCounts.sort((a, b) => b.count - a.count);
+            const top3 = allCounts.slice(0, 3);
+
+            if (top3.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-slate-800/80 border border-slate-700 rounded-lg p-3 text-center text-slate-400 text-xs py-6 sm:col-span-3">
+                        Los alumnos registrados aún no han marcado bloques disponibles.
+                    </div>`;
+                return;
+            }
+
+            const medals = ['🥇 1° Opción', '🥈 2° Opción', '🥉 3° Opción'];
+            container.innerHTML = top3.map((item, idx) => {
+                const pct = Math.round((item.count / total) * 100);
+                const dayFull = DAY_FULL_NAMES[item.day] || item.day;
+                const timeRange = formatRangeLabel(item.time);
+                return `
+                    <div data-top-slot="${item.slotKey}" class="top-slot-card cursor-pointer bg-slate-800/90 hover:bg-slate-700/80 border border-slate-700 rounded-xl p-3 transition flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-[11px] text-amber-300 font-semibold mb-1">
+                            <span>${medals[idx]}</span>
+                            <span class="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">${pct}%</span>
+                        </div>
+                        <div class="font-bold text-white text-sm">${dayFull}</div>
+                        <div class="text-xs text-slate-300">${timeRange}</div>
+                        <div class="mt-2 pt-2 border-t border-slate-700/80 text-[11px] text-slate-400 flex items-center justify-between">
+                            <span>Coincidencia:</span>
+                            <strong class="text-white">${item.count} de ${total} alumnos</strong>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.querySelectorAll('.top-slot-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const key = card.dataset.topSlot;
+                    lockedSlotKey = key;
+                    document.getElementById('inspector-lock-hint').classList.remove('hidden');
+                    // En móvil, cambiar a la pestaña de grupo para ver el detalle
+                    switchMobileTab('group');
+                    renderGroupGrid();
+                    inspectSlot(key, true);
+                });
+            });
+        }
+
+        // ==========================================
+        // 6. INTERACCIÓN DEL ESTUDIANTE (DRAG & PAINT)
+        // ==========================================
+        function ensureStudentActive() {
+            if (currentStudentId && participants[currentStudentId]) {
+                return true;
+            }
+            const nameInput = document.getElementById('student-name');
+            const parallelInput = document.getElementById('student-parallel');
+            const rawName = nameInput.value.trim();
+
+            if (!rawName) {
+                nameInput.focus();
+                nameInput.classList.add('ring-2', 'ring-rose-500');
+                setTimeout(() => nameInput.classList.remove('ring-2', 'ring-rose-500'), 2000);
+                showToast("Por favor, escribe tu nombre arriba antes de marcar tus horas.");
+                return false;
+            }
+
+            loginOrCreateStudent(rawName, parallelInput.value.trim());
+            return true;
+        }
+
+        function loginOrCreateStudent(name, parallel) {
+            const cleanId = 'st_' + name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '_');
+            currentStudentId = cleanId;
+
+            if (!participants[cleanId]) {
+                participants[cleanId] = {
+                    id: cleanId,
+                    name: name,
+                    parallel: parallel || '',
+                    slots: []
+                };
+                showToast(`¡Bienvenido/a, ${name}! Ahora arrastra sobre la cuadrícula para marcar tus horas.`);
+            } else {
+                if (parallel) participants[cleanId].parallel = parallel;
+                showToast(`Editando disponibilidad de ${participants[cleanId].name}`);
+            }
+
+            saveParticipantToCloud(participants[cleanId]);
+            renderAll();
+        }
+
+        function handleStartDrag(slotKey) {
+            if (!ensureStudentActive()) return;
+            isDragging = true;
+            const st = participants[currentStudentId];
+            const hasSlot = st.slots.includes(slotKey);
+            dragTargetValue = !hasSlot;
+            toggleStudentSlot(slotKey, dragTargetValue);
+        }
+
+        function handleEnterDrag(slotKey) {
+            if (!isDragging || !currentStudentId) return;
+            toggleStudentSlot(slotKey, dragTargetValue);
+        }
+
+        window.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                if (currentStudentId && participants[currentStudentId]) {
+                    saveParticipantToCloud(participants[currentStudentId]);
+                }
+            }
+        });
+
+        window.addEventListener('touchend', () => {
+            if (isDragging) {
+                isDragging = false;
+                if (currentStudentId && participants[currentStudentId]) {
+                    saveParticipantToCloud(participants[currentStudentId]);
+                }
+            }
+        });
+
+        function toggleStudentSlot(slotKey, shouldAdd) {
+            const st = participants[currentStudentId];
+            if (!st) return;
+            const idx = st.slots.indexOf(slotKey);
+            if (shouldAdd && idx === -1) {
+                st.slots.push(slotKey);
+            } else if (!shouldAdd && idx !== -1) {
+                st.slots.splice(idx, 1);
+            }
+            renderPersonalGrid();
+            renderGroupGrid();
+            renderTopBestSlots();
+            if (lockedSlotKey) inspectSlot(lockedSlotKey, true);
+        }
+
+        function updateActiveStudentBanner() {
+            const dot = document.getElementById('student-status-dot');
+            const msg = document.getElementById('student-status-msg');
+            const clearBtn = document.getElementById('btn-clear-my-slots');
+
+            if (currentStudentId && participants[currentStudentId]) {
+                const st = participants[currentStudentId];
+                dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+                msg.innerHTML = `Marcando horarios como: <strong class="text-slate-900">${escapeHtml(st.name)}</strong> ${st.parallel ? `(${escapeHtml(st.parallel)})` : ''} — Los cambios se guardan automáticamente.`;
+                clearBtn.classList.remove('hidden');
+            } else {
+                dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400";
+                msg.textContent = "Ingresa tu nombre arriba para empezar a pintar tu disponibilidad en la cuadrícula izquierda.";
+                clearBtn.classList.add('hidden');
+            }
+        }
+
+        // ==========================================
+        // 7. SIMULADOR DE 15 ALUMNOS DE PRUEBA
+        // ==========================================
+        function simulate15Students() {
+            const sampleNames = [
+                { name: "Alejandro Paredes", parallel: "GR1" },
+                { name: "Valeria Zambrano", parallel: "GR1" },
+                { name: "Sebastián Mosquera", parallel: "GR2" },
+                { name: "Camila Rivadeneira", parallel: "GR1" },
+                { name: "Diego Villavicencio", parallel: "GR2" },
+                { name: "Daniela Andrade", parallel: "GR1" },
+                { name: "Mateo Cevallos", parallel: "GR2" },
+                { name: "Fernanda Salazar", parallel: "GR1" },
+                { name: "Gabriel Izurieta", parallel: "GR2" },
+                { name: "Sofía Peñaherrera", parallel: "GR1" },
+                { name: "Nicolás Guerrero", parallel: "GR2" },
+                { name: "Martina Espinoza", parallel: "GR1" },
+                { name: "Andrés Benítez", parallel: "GR2" },
+                { name: "Paula Mancheno", parallel: "GR1" },
+                { name: "Emilio Córdoba", parallel: "GR2" }
+            ];
+
+            const times = generateTimeSlots();
+            const days = eventConfig.days;
+
+            // Definir 3 "focos" horarios de alta coincidencia realista (ej. Miércoles tarde y Viernes mañana)
+            const hotZones = [
+                `${days[Math.min(2, days.length - 1)]}_${times[Math.min(7, times.length - 1)]}`,
+                `${days[Math.min(2, days.length - 1)]}_${times[Math.min(8, times.length - 1)]}`,
+                `${days[Math.min(4, days.length - 1)]}_${times[Math.min(4, times.length - 1)]}`
+            ];
+
+            sampleNames.forEach((student) => {
+                const id = 'sim_' + student.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '_');
+                const slots = new Set();
+
+                // Alta probabilidad (85%) en las horas clave para que el profesor vea un Top 3 realista
+                hotZones.forEach(hz => {
+                    if (Math.random() < 0.85) slots.add(hz);
+                });
+
+                // Disponibilidad aleatoria en el resto de la semana (30%)
+                days.forEach(d => {
+                    times.forEach(t => {
+                        if (Math.random() < 0.28) {
+                            slots.add(`${d}_${t}`);
+                        }
+                    });
+                });
+
+                const stObj = {
+                    id,
+                    name: student.name,
+                    parallel: student.parallel,
+                    slots: Array.from(slots)
+                };
+                participants[id] = stObj;
+                saveParticipantToCloud(stObj);
+            });
+
+            renderAll();
+            // Seleccionar automáticamente el mejor bloque para mostrar el inspector lleno
+            if (hotZones[0]) {
+                lockedSlotKey = hotZones[0];
+                document.getElementById('inspector-lock-hint').classList.remove('hidden');
+                renderGroupGrid();
+                inspectSlot(hotZones[0], true);
+            }
+            showToast("Se han simulado 15 alumnos universitarios con éxito.");
+        }
+
+        // ==========================================
+        // 8. PERSISTENCIA EN TIEMPO REAL (FIRESTORE)
+        // ==========================================
+        async function initFirebaseConnection(customConfigObj = null) {
+            try {
+                let firebaseConfig = customConfigObj;
+                if (!firebaseConfig && typeof __firebase_config !== 'undefined' && __firebase_config) {
+                    firebaseConfig = JSON.parse(__firebase_config);
+                }
+
+                if (!firebaseConfig) {
+                    setSyncBadge(false, "Modo Local / GitHub");
+                    return;
+                }
+
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Regla 3: Autenticar primero antes de cualquier consulta
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    currentUser = user;
+                    if (user) {
+                        isCloudActive = true;
+                        setSyncBadge(true, "Tiempo Real Activo");
+                        subscribeToCloudData();
+                    }
+                });
+            } catch (err) {
+                console.warn("Ejecutando en modo memoria local:", err);
+                setSyncBadge(false, "Modo Memoria Local");
+            }
+        }
+
+        function setSyncBadge(online, text) {
+            const badge = document.getElementById('sync-badge');
+            if (online) {
+                badge.className = "text-[11px] bg-slate-800 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1";
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> ${text}`;
+            } else {
+                badge.className = "text-[11px] bg-slate-800 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1";
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400"></span> ${text}`;
+            }
+        }
+
+        function subscribeToCloudData() {
+            if (!currentUser || !db) return;
+
+            // Escuchar configuración del evento del profesor (Regla 1: ruta estricta)
+            const configDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'when2meet_config', 'main_event');
+            onSnapshot(configDocRef, (snap) => {
+                if (snap.exists()) {
+                    const data = snap.data();
+                    eventConfig = {
+                        title: data.title || eventConfig.title,
+                        course: data.course || eventConfig.course,
+                        description: data.description || eventConfig.description,
+                        days: data.days ? JSON.parse(data.days) : eventConfig.days,
+                        startHour: Number(data.startHour) || 7,
+                        endHour: Number(data.endHour) || 19,
+                        interval: Number(data.interval) || 60
+                    };
+                    renderAll();
+                }
+            }, (err) => console.warn("Error leyendo config:", err));
+
+            // Escuchar disponibilidades de todos los alumnos
+            const responsesColRef = collection(db, 'artifacts', appId, 'public', 'data', 'when2meet_responses');
+            onSnapshot(responsesColRef, (snapshot) => {
+                const updated = {};
+                snapshot.forEach(docSnap => {
+                    const d = docSnap.data();
+                    updated[docSnap.id] = {
+                        id: docSnap.id,
+                        name: d.name,
+                        parallel: d.parallel || '',
+                        slots: d.slots ? JSON.parse(d.slots) : []
+                    };
+                });
+                participants = updated;
+                renderAll();
+            }, (err) => console.warn("Error leyendo respuestas:", err));
+        }
+
+        async function saveParticipantToCloud(studentObj) {
+            if (!isCloudActive || !currentUser || !db) return;
+            try {
+                const ref = doc(db, 'artifacts', appId, 'public', 'data', 'when2meet_responses', studentObj.id);
+                await setDoc(ref, {
+                    name: studentObj.name,
+                    parallel: studentObj.parallel || '',
+                    slots: JSON.stringify(studentObj.slots || []),
+                    updatedAt: Date.now()
+                });
+            } catch (e) {
+                console.warn("No se pudo guardar en la nube:", e);
+            }
+        }
+
+        async function saveConfigToCloud() {
+            if (!isCloudActive || !currentUser || !db) return;
+            try {
+                const ref = doc(db, 'artifacts', appId, 'public', 'data', 'when2meet_config', 'main_event');
+                await setDoc(ref, {
+                    title: eventConfig.title,
+                    course: eventConfig.course,
+                    description: eventConfig.description,
+                    days: JSON.stringify(eventConfig.days),
+                    startHour: eventConfig.startHour,
+                    endHour: eventConfig.endHour,
+                    interval: eventConfig.interval,
+                    updatedAt: Date.now()
+                });
+            } catch (e) {
+                console.warn("No se pudo guardar configuración:", e);
+            }
+        }
+
+        async function clearAllParticipants() {
+            const ids = Object.keys(participants);
+            participants = {};
+            currentStudentId = null;
+            lockedSlotKey = null;
+            renderAll();
+
+            if (isCloudActive && currentUser && db) {
+                for (const id of ids) {
+                    try {
+                        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'when2meet_responses', id));
+                    } catch (e) {}
+                }
+            }
+            showToast("Se han eliminado todos los registros del horario.");
+        }
+
+        // ==========================================
+        // 9. EVENTOS DE BOTONES Y CONTROLES
+        // ==========================================
+        document.getElementById('btn-login-student').addEventListener('click', () => {
+            const name = document.getElementById('student-name').value.trim();
+            const parallel = document.getElementById('student-parallel').value.trim();
+            if (!name) {
+                showToast("Por favor escribe tu nombre y apellido.");
+                document.getElementById('student-name').focus();
+                return;
+            }
+            loginOrCreateStudent(name, parallel);
+        });
+
+        document.getElementById('quick-select-student').addEventListener('change', (e) => {
+            const id = e.target.value;
+            if (id && participants[id]) {
+                currentStudentId = id;
+                document.getElementById('student-name').value = participants[id].name;
+                document.getElementById('student-parallel').value = participants[id].parallel || '';
+                renderAll();
+                showToast(`Viendo disponibilidad de ${participants[id].name}`);
+            }
+        });
+
+        document.getElementById('btn-clear-my-slots').addEventListener('click', () => {
+            if (currentStudentId && participants[currentStudentId]) {
+                participants[currentStudentId].slots = [];
+                saveParticipantToCloud(participants[currentStudentId]);
+                renderAll();
+                showToast("Has limpiado tus horas seleccionadas.");
+            }
+        });
+
+        document.getElementById('btn-simulate').addEventListener('click', () => {
+            simulate15Students();
+        });
+
+        document.getElementById('btn-clear-all').addEventListener('click', () => {
+            askConfirm(
+                "¿Reiniciar lista de alumnos?",
+                "Se borrarán todas las disponibilidades registradas actualmente para este evento.",
+                () => clearAllParticipants()
+            );
+        });
+
+        // Pestañas en móvil
+        function switchMobileTab(tab) {
+            const btnPersonal = document.getElementById('tab-mobile-personal');
+            const btnGroup = document.getElementById('tab-mobile-group');
+            const panelPersonal = document.getElementById('panel-personal-grid');
+            const panelGroup = document.getElementById('panel-group-grid');
+
+            if (tab === 'personal') {
+                btnPersonal.className = "flex-1 py-2 text-xs font-bold rounded-lg bg-white text-slate-900 shadow-sm transition";
+                btnGroup.className = "flex-1 py-2 text-xs font-bold rounded-lg text-slate-600 hover:text-slate-900 transition";
+                panelPersonal.classList.remove('hidden');
+                panelGroup.classList.add('hidden');
+            } else {
+                btnGroup.className = "flex-1 py-2 text-xs font-bold rounded-lg bg-white text-slate-900 shadow-sm transition";
+                btnPersonal.className = "flex-1 py-2 text-xs font-bold rounded-lg text-slate-600 hover:text-slate-900 transition";
+                panelPersonal.classList.add('hidden', 'lg:block');
+                panelGroup.classList.remove('hidden');
+            }
+        }
+
+        document.getElementById('tab-mobile-personal').addEventListener('click', () => switchMobileTab('personal'));
+        document.getElementById('tab-mobile-group').addEventListener('click', () => switchMobileTab('group'));
+
+        // Modal de Configuración del Profesor
+        const modalConfig = document.getElementById('modal-config');
+        document.getElementById('btn-config-event').addEventListener('click', () => {
+            document.getElementById('cfg-title').value = eventConfig.title;
+            document.getElementById('cfg-course').value = eventConfig.course;
+            document.getElementById('cfg-desc').value = eventConfig.description;
+            document.getElementById('cfg-interval').value = String(eventConfig.interval);
+            document.getElementById('cfg-start-hour').value = String(eventConfig.startHour);
+            document.getElementById('cfg-end-hour').value = String(eventConfig.endHour);
+
+            const checkboxes = document.querySelectorAll('#cfg-days-list input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = eventConfig.days.includes(cb.value);
+            });
+
+            modalConfig.classList.remove('hidden');
+        });
+
+        const closeConfig = () => modalConfig.classList.add('hidden');
+        document.getElementById('btn-close-config').addEventListener('click', closeConfig);
+        document.getElementById('btn-cancel-config').addEventListener('click', closeConfig);
+
+        document.getElementById('btn-save-config').addEventListener('click', () => {
+            const selectedDays = Array.from(document.querySelectorAll('#cfg-days-list input[type="checkbox"]:checked')).map(cb => cb.value);
+            if (selectedDays.length === 0) {
+                showToast("Selecciona al menos un día de la semana.");
+                return;
+            }
+            const startH = Number(document.getElementById('cfg-start-hour').value);
+            const endH = Number(document.getElementById('cfg-end-hour').value);
+            if (startH >= endH) {
+                showToast("La hora de fin debe ser posterior a la hora de inicio.");
+                return;
+            }
+
+            eventConfig.title = document.getElementById('cfg-title').value.trim() || "Tutoría / Recuperación";
+            eventConfig.course = document.getElementById('cfg-course').value.trim() || "Curso Universitario";
+            eventConfig.description = document.getElementById('cfg-desc').value.trim();
+            eventConfig.interval = Number(document.getElementById('cfg-interval').value);
+            eventConfig.days = selectedDays;
+            eventConfig.startHour = startH;
+            eventConfig.endHour = endH;
+
+            saveConfigToCloud();
+            renderAll();
+            closeConfig();
+            showToast("Configuración del horario actualizada.");
+        });
+
+        // Modal de Exportar / Importar y GitHub Pages
+        const modalExport = document.getElementById('modal-export');
+        document.getElementById('btn-export-menu').addEventListener('click', () => {
+            modalExport.classList.remove('hidden');
+        });
+        document.getElementById('btn-close-export').addEventListener('click', () => modalExport.classList.add('hidden'));
+        document.getElementById('btn-done-export').addEventListener('click', () => {
+            const customFb = document.getElementById('custom-firebase-input').value.trim();
+            if (customFb) {
+                try {
+                    const parsed = JSON.parse(customFb);
+                    initFirebaseConnection(parsed);
+                    showToast("Conectado a tus credenciales personalizadas de Firebase.");
+                } catch (e) {
+                    showToast("El formato JSON de Firebase no es válido.");
+                    return;
+                }
+            }
+            modalExport.classList.add('hidden');
+        });
+
+        // Descargar reporte en CSV (Excel)
+        document.getElementById('btn-download-csv').addEventListener('click', () => {
+            const times = generateTimeSlots();
+            const days = eventConfig.days;
+            const studentList = Object.values(participants);
+
+            let csv = "Dia,Bloque Horario,Cantidad Disponibles,Total Alumnos,Porcentaje,Alumnos Disponibles,Alumnos No Disponibles\n";
+            days.forEach(day => {
+                times.forEach(time => {
+                    const key = `${day}_${time}`;
+                    const avail = [];
+                    const unavail = [];
+                    studentList.forEach(st => {
+                        if (st.slots && st.slots.includes(key)) avail.push(`${st.name} ${st.parallel ? '('+st.parallel+')' : ''}`);
+                        else unavail.push(`${st.name} ${st.parallel ? '('+st.parallel+')' : ''}`);
+                    });
+                    const pct = studentList.length ? Math.round((avail.length / studentList.length) * 100) : 0;
+                    csv += `"${DAY_FULL_NAMES[day]}","${formatRangeLabel(time)}",${avail.length},${studentList.length},${pct}%,"${avail.join('; ')}","${unavail.join('; ')}"\n`;
+                });
+            });
+
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `reporte_horarios_${Date.now()}.csv`;
+            a.click();
+            showToast("Archivo CSV descargado para Excel.");
+        });
+
+        // Copiar JSON al portapapeles
+        document.getElementById('btn-copy-json').addEventListener('click', () => {
+            const payload = JSON.stringify({ eventConfig, participants });
+            const tempInput = document.createElement('textarea');
+            tempInput.value = payload;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast("Respaldo JSON copiado al portapapeles.");
+        });
+
+        // Importar JSON
+        document.getElementById('btn-import-json').addEventListener('click', () => {
+            const raw = document.getElementById('import-json-input').value.trim();
+            if (!raw) {
+                showToast("Pega primero un código JSON válido.");
+                return;
+            }
+            try {
+                const parsed = JSON.parse(raw);
+                if (parsed.eventConfig) eventConfig = parsed.eventConfig;
+                if (parsed.participants) {
+                    participants = parsed.participants;
+                    Object.values(participants).forEach(st => saveParticipantToCloud(st));
+                }
+                saveConfigToCloud();
+                renderAll();
+                modalExport.classList.add('hidden');
+                showToast("Datos importados correctamente.");
+            } catch (e) {
+                showToast("Error al leer el JSON. Verifica el formato.");
+            }
+        });
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+        }
+
+        // Inicialización al cargar la ventana
+        window.onload = () => {
+            lucide.createIcons();
+            renderAll();
+            initFirebaseConnection();
+        };
+    </script>
+</body>
+</html>
