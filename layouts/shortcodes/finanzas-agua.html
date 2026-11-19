@@ -96,9 +96,7 @@
     gap: 0.5rem;
     margin-bottom: 0.6rem;
   }
-  .agua-controles-resumen {
-    margin-bottom: 0.75rem;
-  }
+  .agua-controles-resumen { margin-bottom: 0.75rem; }
   @media (max-width: 500px) { .agua-controles { grid-template-columns: 1fr; } }
   .agua-controles select,
   .agua-controles input,
@@ -128,12 +126,32 @@
     border-radius: 10px;
     padding: 0.75rem 0.9rem;
   }
+  details.agua-item { padding: 0; }
+  details.agua-item summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 0.75rem 0.9rem;
+    user-select: none;
+  }
+  details.agua-item summary::-webkit-details-marker { display: none; }
   .agua-item-top {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 0.5rem;
   }
+  .agua-nombre-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .agua-chevron {
+    font-size: 0.75rem;
+    opacity: 0.6;
+    transition: transform 0.2s ease;
+    display: inline-block;
+  }
+  details.agua-item[open] .agua-chevron { transform: rotate(90deg); }
   .agua-badge {
     font-size: 0.8rem;
     font-weight: 600;
@@ -145,6 +163,28 @@
   .badge-pend { background: var(--pend-bg); color: var(--pend-txt); }
   .badge-na { background: var(--card); opacity: 0.65; }
   .agua-meta { font-size: 0.82rem; opacity: 0.75; margin-top: 0.35rem; }
+  .agua-historial {
+    padding: 0.65rem 0.9rem 0.85rem;
+    border-top: 1px solid var(--border);
+  }
+  .agua-historial-titulo {
+    font-size: 0.78rem;
+    opacity: 0.75;
+    margin-bottom: 0.45rem;
+  }
+  .agua-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .agua-chip {
+    font-size: 0.76rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    background: var(--ok-bg);
+    color: var(--ok-txt);
+    font-weight: 500;
+  }
   .agua-nota {
     margin-top: 0.45rem;
     font-size: 0.83rem;
@@ -166,7 +206,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (() => {
-  const SHEET_ID = "1bkW1F3ymrEXjDdrKK374_5rbMxXPoDPInG02pyypy9Q";
+  const SHEET_ID = "PEGA_AQUI_EL_ID_DE_TU_HOJA";
   const urlCSV = (sheet) =>
     `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheet)}`;
 
@@ -199,7 +239,21 @@
     return rows;
   }
 
-  const toNum = (s) => parseFloat(String(s || "0").replace(/[^0-9.-]/g, "")) || 0;
+  // Maneja tanto formato con punto ($43.37) como con coma ($43,37)
+  const toNum = (s) => {
+    let clean = String(s || "0").replace(/[^0-9.,-]/g, "");
+    if (clean.includes(",") && clean.includes(".")) {
+      if (clean.lastIndexOf(",") > clean.lastIndexOf(".")) {
+        clean = clean.replace(/\./g, "").replace(",", ".");
+      } else {
+        clean = clean.replace(/,/g, "");
+      }
+    } else if (clean.includes(",")) {
+      clean = clean.replace(",", ".");
+    }
+    return parseFloat(clean) || 0;
+  };
+
   const money = (n) => `$${n.toFixed(2)}`;
   const capitalizar = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
 
@@ -221,13 +275,18 @@
       const meses = headersA.slice(1, idxTotal > 0 ? idxTotal : headersA.length);
       const personas = rawAportes.slice(1)
         .filter(r => r[0] && !r[0].toLowerCase().startsWith("total"))
-        .map(r => ({
-          nombre: r[0],
-          pagos: Object.fromEntries(meses.map((m, i) => [m, (r[i + 1] || "").toUpperCase()])),
-          total: idxTotal > 0 ? r[idxTotal] : ""
-        }));
+        .map(r => {
+          const pagos = Object.fromEntries(meses.map((m, i) => [m, (r[i + 1] || "").toUpperCase()]));
+          const mesesPagados = meses.filter(m => pagos[m] === "TRUE");
+          return {
+            nombre: r[0],
+            pagos,
+            mesesPagados,
+            total: idxTotal > 0 ? r[idxTotal] : `${mesesPagados.length} aportes.`
+          };
+        });
 
-      // Procesar Resumen (detecta año escrito o lo infiere automáticamente)
+      // Procesar Resumen
       let anio = parseInt((meses[0] || "").match(/\d{4}/)?.[0] || "2025", 10);
       const resumen = rawResumen.slice(1).filter(r => r[0]).map((r, idx) => {
         let mesLabel = capitalizar(r[0]);
@@ -260,161 +319,4 @@
       const mesActual = meses.find(m => m.toLowerCase() === etiquetaHoy) || meses[meses.length - 1];
 
       // KPIs
-      const regActual = resumen.find(r => r.mes.toLowerCase() === mesActual.toLowerCase()) || resumen[resumen.length - 1];
-      const ultimoReg = resumen[resumen.length - 1];
-      const notaAdelanto = ultimoReg.mes !== regActual.mes
-        ? `Con adelantos (${ultimoReg.mes}): ${money(ultimoReg.saldoFinal)}`
-        : `Actualizado a ${regActual.mes}`;
-
-      document.getElementById("agua-kpis").innerHTML = `
-        <div class="agua-kpi">
-          <small>Saldo disponible (${regActual.mes})</small>
-          <strong>${money(regActual.saldoFinal)}</strong>
-          <span>${notaAdelanto}</span>
-        </div>
-        <div class="agua-kpi">
-          <small>Aportes del mes</small>
-          <strong>${money(regActual.aportes)}</strong>
-          <span>Gastos: ${money(regActual.gastoAgua + regActual.gastosVarios)}</span>
-        </div>
-        <div class="agua-kpi">
-          <small>Botellones (${regActual.mes})</small>
-          <strong>${regActual.botellones ?? 0}</strong>
-          <span>Agua: ${money(regActual.gastoAgua)}</span>
-        </div>
-      `;
-
-      // Selector de meses (más reciente primero)
-      const selMes = document.getElementById("select-mes");
-      [...meses].reverse().forEach(m => {
-        const opt = document.createElement("option");
-        opt.value = m;
-        opt.textContent = m;
-        if (m === mesActual) opt.selected = true;
-        selMes.appendChild(opt);
-      });
-
-      const renderAportes = () => {
-        const m = selMes.value;
-        const q = document.getElementById("buscar-nombre").value.toLowerCase().trim();
-        const soloActivos = document.getElementById("solo-activos").checked;
-        const cont = document.getElementById("lista-aportes");
-
-        const filtrados = personas.filter(p => {
-          const estado = p.pagos[m];
-          if (soloActivos && estado !== "TRUE" && estado !== "FALSE") return false;
-          if (q && !p.nombre.toLowerCase().includes(q)) return false;
-          return true;
-        });
-
-        cont.innerHTML = filtrados.length ? filtrados.map(p => {
-          const st = p.pagos[m];
-          const badge = st === "TRUE"
-            ? `<span class="agua-badge badge-ok">✓ Pagado</span>`
-            : st === "FALSE"
-              ? `<span class="agua-badge badge-pend">Pendiente</span>`
-              : `<span class="agua-badge badge-na">No aplica</span>`;
-          return `
-            <div class="agua-item">
-              <div class="agua-item-top">
-                <strong>${p.nombre}</strong>
-                ${badge}
-              </div>
-              <div class="agua-meta">Acumulado histórico: ${p.total || "—"}</div>
-            </div>
-          `;
-        }).join("") : `<div class="agua-item">No se encontraron personas con ese filtro.</div>`;
-      };
-
-      selMes.addEventListener("change", renderAportes);
-      document.getElementById("buscar-nombre").addEventListener("input", renderAportes);
-      document.getElementById("solo-activos").addEventListener("change", renderAportes);
-      renderAportes();
-
-      // Selector de años para Resumen y Gráfico
-      const aniosDisponibles = [...new Set(resumen.map(r => r.anio))].sort().reverse();
-      const selAnio = document.getElementById("select-anio");
-
-      aniosDisponibles.forEach(a => {
-        const opt = document.createElement("option");
-        opt.value = a;
-        opt.textContent = `Año ${a}`;
-        if (a === anioHoy) opt.selected = true;
-        selAnio.appendChild(opt);
-      });
-      const optTodos = document.createElement("option");
-      optTodos.value = "todos";
-      optTodos.textContent = "Todos los años";
-      selAnio.appendChild(optTodos);
-
-      const renderResumen = () => {
-        const filtroAnio = selAnio.value;
-        const datos = filtroAnio === "todos"
-          ? resumen
-          : resumen.filter(r => r.anio === filtroAnio);
-
-        document.getElementById("lista-resumen").innerHTML = [...datos].reverse().map(r => `
-          <div class="agua-item">
-            <div class="agua-item-top">
-              <strong>${r.mes}</strong>
-              <strong>Saldo: ${money(r.saldoFinal)}</strong>
-            </div>
-            <div class="agua-meta">
-              Aportes: ${money(r.aportes)} · Botellones: ${r.botellones ?? "—"} (${money(r.gastoAgua)})
-              ${r.gastosVarios > 0 ? ` · Varios: ${money(r.gastosVarios)}` : ""}
-            </div>
-            ${r.notas ? `<div class="agua-nota">${r.notas}</div>` : ""}
-          </div>
-        `).join("");
-
-        if (chartInstance) chartInstance.destroy();
-        chartInstance = new Chart(document.getElementById("grafico-saldo"), {
-          type: "line",
-          data: {
-            labels: datos.map(r =>
-              filtroAnio === "todos"
-                ? r.mes.replace(/ 20(\d\d)/, " '$1")
-                : r.mes.replace(/ \d{4}/, "")
-            ),
-            datasets: [{
-              label: "Saldo final ($)",
-              data: datos.map(r => r.saldoFinal),
-              borderColor: "#1b6e4b",
-              backgroundColor: "rgba(27, 110, 75, 0.15)",
-              fill: true,
-              tension: 0.3
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true } }
-          }
-        });
-      };
-
-      selAnio.addEventListener("change", renderResumen);
-      renderResumen();
-
-      // Tabs
-      document.querySelectorAll(".agua-tab").forEach(btn => {
-        btn.addEventListener("click", () => {
-          document.querySelectorAll(".agua-tab, .agua-panel").forEach(el => el.classList.remove("active"));
-          btn.classList.add("active");
-          document.getElementById(`panel-${btn.dataset.tab}`).classList.add("active");
-        });
-      });
-
-      document.getElementById("agua-estado").style.display = "none";
-      document.getElementById("agua-contenido").style.display = "block";
-    } catch (err) {
-      document.getElementById("agua-estado").textContent =
-        "No se pudieron cargar los datos. Verifica que la hoja sea pública (Cualquier persona con el enlace puede ver).";
-      console.error(err);
-    }
-  }
-
-  init();
-})();
-</script>
+      const regActual = resumen.find(r => r.mes.toLowerCase() === mesActual.toLowerCase()) || resumen[resumen
