@@ -1,6 +1,6 @@
 baseURL = 'https://miguelzambrano.github.io/personalwebpage/'
 locale = 'es-EC'
-title = 'Página personal de Miguel Zambrano'
+title = 'Miguel Zambrano'
 theme = 'PaperMod'
 
 [markup.goldmark.renderer]
