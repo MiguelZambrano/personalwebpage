@@ -1,6 +1,6 @@
 ---
 title: 'Planificación de clases de recuperación o extras'
-draft: true
+draft: false
 tags: ["Docencia"]
 ---
 
