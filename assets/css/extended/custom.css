@@ -3,3 +3,41 @@
   max-width: 540px;
   line-height: 1.6;
 }
+
+/* Ocultar la barra superior solo en la portada */
+body:has(.profile) .header {
+  display: none;
+}
+
+/* Centrar el bloque principal pero alinear su contenido a la izquierda */
+.profile .profile_inner {
+  align-items: flex-start;
+  text-align: left;
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+/* Foto circular con recorte limpio */
+.profile .profile_inner img {
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  margin-bottom: 0.75rem;
+}
+
+/* Párrafo con buen espaciado */
+.profile .profile_inner span {
+  line-height: 1.6;
+  margin-top: 0.5rem;
+}
+
+/* Alinear íconos y botones a la izquierda */
+.profile .social-icons,
+.profile .buttons {
+  justify-content: flex-start;
+}
+
+.profile .buttons {
+  margin-top: 0.75rem;
+  gap: 0.5rem;
+}
