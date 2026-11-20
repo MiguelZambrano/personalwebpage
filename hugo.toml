@@ -13,8 +13,7 @@ theme = 'PaperMod'
   [params.profileMode]
     enabled = true
     title = "Miguel Andrés Zambrano"
-    subtitle = "Profesor Ocasional del Departamento de Matemática
-    Escuela Politécnica Nacional"
+    subtitle = "Profesor Ocasional del Departamento de Matemática<br>Escuela Politécnica Nacional"
     # Si luego quieres poner tu foto, guarda una imagen en static/perfil.jpg y descomenta las 3 líneas siguientes:
     # imageUrl = "perfil.jpg"
     # imageWidth = 150
