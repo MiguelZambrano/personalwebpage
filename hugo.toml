@@ -1,4 +1,4 @@
-baseURL = 'https://example.org/'
+baseURL = 'https://miguelzambrano.github.io/personalwebpage/'
 locale = 'es-EC'
 title = 'Página personal de Miguel Zambrano'
 theme = 'PaperMod'
@@ -8,22 +8,26 @@ theme = 'PaperMod'
 
 [params]
   [params.assets]
-    favicon = "favicon.png"
+    favicon = "migueweb.jpg"
 
   [params.profileMode]
     enabled = true
     title = "Miguel Andrés Zambrano"
-    subtitle = "Profesor Ocasional del Departamento de Matemática<br>Escuela Politécnica Nacional<br><br><small>Optimización topológica · Modelización matemática · Docencia universitaria</small>"
-    # Cuando quieras agregar tu foto, súbela a static/perfil.jpg y descomenta estas 4 líneas:
-    # imageUrl = "perfil.jpg"
-    # imageTitle = "Miguel Andrés Zambrano"
-    # imageWidth = 150
-    # imageHeight = 150
+    subtitle = "Profesor Ocasional del Departamento de Matemática en la Escuela Politécnica Nacional. Mi trabajo se centra en optimización topológica, modelización matemática y docencia universitaria."
+    imageUrl = "perfil.jpg"
+    imageTitle = "Miguel Andrés Zambrano"
+    imageWidth = 150
+    imageHeight = 150
 
-    # (Opcional) Si quieres un solo botón que NO repita el menú, por ejemplo tu CV en static/cv.pdf:
-    # [[params.profileMode.buttons]]
-    #   name = "Descargar CV"
-    #   url = "cv.pdf"
+    [[params.profileMode.buttons]]
+      name = "Docencia"
+      url = "docencia/"
+    [[params.profileMode.buttons]]
+      name = "Investigación"
+      url = "investigacion/"
+    [[params.profileMode.buttons]]
+      name = "Extras"
+      url = "extras/"
 
   [[params.socialIcons]]
     name = "email"
