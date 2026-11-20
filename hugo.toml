@@ -13,21 +13,33 @@ theme = 'PaperMod'
   [params.profileMode]
     enabled = true
     title = "Miguel Andrés Zambrano"
-    subtitle = "Profesor Ocasional del Departamento de Matemática<br>Escuela Politécnica Nacional"
-    # Si luego quieres poner tu foto, guarda una imagen en static/perfil.jpg y descomenta las 3 líneas siguientes:
+    subtitle = "Profesor Ocasional del Departamento de Matemática<br>Escuela Politécnica Nacional<br><br><small>Optimización topológica · Modelización matemática · Docencia universitaria</small>"
+    # Cuando quieras agregar tu foto, súbela a static/perfil.jpg y descomenta estas 4 líneas:
     # imageUrl = "perfil.jpg"
+    # imageTitle = "Miguel Andrés Zambrano"
     # imageWidth = 150
     # imageHeight = 150
 
-    [[params.profileMode.buttons]]
-      name = "Docencia"
-      url = "docencia/"
-    [[params.profileMode.buttons]]
-      name = "Investigación"
-      url = "investigacion/"
-    [[params.profileMode.buttons]]
-      name = "Extras"
-      url = "extras/"
+    # (Opcional) Si quieres un solo botón que NO repita el menú, por ejemplo tu CV en static/cv.pdf:
+    # [[params.profileMode.buttons]]
+    #   name = "Descargar CV"
+    #   url = "cv.pdf"
+
+  [[params.socialIcons]]
+    name = "email"
+    url = "mailto:miguel.zambrano@epn.edu.ec"
+
+  [[params.socialIcons]]
+    name = "googlescholar"
+    url = "https://scholar.google.com/citations?user=DWd3yo0AAAAJ&hl=es"
+
+  [[params.socialIcons]]
+    name = "orcid"
+    url = "https://orcid.org/0000-0003-0007-7641"
+
+  [[params.socialIcons]]
+    name = "github"
+    url = "https://github.com/MiguelZambrano"
 
 [[menu.main]]
   name = "Docencia"
