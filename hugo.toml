@@ -1,5 +1,5 @@
 baseURL = 'https://example.org/'
-languageCode = 'es-us'
+locale = 'es-EC'
 title = 'Página personal de Miguel Zambrano'
 theme = 'PaperMod'
 
@@ -9,3 +9,38 @@ theme = 'PaperMod'
 [params]
   [params.assets]
     favicon = "favicon.png"
+
+  [params.profileMode]
+    enabled = true
+    title = "Miguel Andrés Zambrano"
+    subtitle = "Profesor Ocasional del Departamento de Matemática
+    Escuela Politécnica Nacional"
+    # Si luego quieres poner tu foto, guarda una imagen en static/perfil.jpg y descomenta las 3 líneas siguientes:
+    # imageUrl = "perfil.jpg"
+    # imageWidth = 150
+    # imageHeight = 150
+
+    [[params.profileMode.buttons]]
+      name = "Docencia"
+      url = "docencia/"
+    [[params.profileMode.buttons]]
+      name = "Investigación"
+      url = "investigacion/"
+    [[params.profileMode.buttons]]
+      name = "Extras"
+      url = "extras/"
+
+[[menu.main]]
+  name = "Docencia"
+  url = "docencia/"
+  weight = 10
+
+[[menu.main]]
+  name = "Investigación"
+  url = "investigacion/"
+  weight = 20
+
+[[menu.main]]
+  name = "Extras"
+  url = "extras/"
+  weight = 30
